@@ -1,25 +1,13 @@
 import { serve } from "bun";
 import index from "./index.html";
+import * as vercelRoutes from "./frameworks/vercel/route";
 
 const server = serve({
   routes: {
     // Serve index.html for all unmatched routes.
     "/*": index,
 
-    "/api/hello": {
-      async GET(req) {
-        return Response.json({
-          message: "Hello, world!",
-          method: "GET",
-        });
-      },
-      async PUT(req) {
-        return Response.json({
-          message: "Hello, world!",
-          method: "PUT",
-        });
-      },
-    },
+    "/api/vercel": vercelRoutes,
 
     "/api/hello/:name": async req => {
       const name = req.params.name;
