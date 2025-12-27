@@ -2,6 +2,7 @@ import { Phone } from 'lucide-react';
 import { TranscriptionDisplay } from './transcription-display';
 import { AudioVisualizerLive } from './audio-visualizer-live';
 import { CallControlsLive } from './call-controls-live';
+import { ToolCallIndicator } from './tool-call-indicator';
 import { useGeminiLive } from '../hooks/use-gemini-live';
 
 export function GeminiLiveInterface() {
@@ -14,6 +15,7 @@ export function GeminiLiveInterface() {
     currentInput,
     currentOutput,
     visualizerData,
+    currentTool,
   } = useGeminiLive();
 
   const isActive = status === 'connected';
@@ -46,6 +48,7 @@ export function GeminiLiveInterface() {
             isActive={isActive}
           />
           <AudioVisualizerLive data={visualizerData} isActive={isActive} />
+          <ToolCallIndicator tool={currentTool} />
           <CallControlsLive
             status={status}
             onConnect={connect}

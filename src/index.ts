@@ -94,6 +94,14 @@ const server = serve({
               console.log('Gemini Live Session interruption:', event);
               ws.send(JSON.stringify({ type: 'interruption', event }));
             },
+            onToolCall: (tool) => {
+              console.log('Gemini Live Session tool call:', tool);
+              ws.send(JSON.stringify({ type: 'tool_call', tool }));
+            },
+            onToolResult: (tool) => {
+              console.log('Gemini Live Session tool result:', tool);
+              ws.send(JSON.stringify({ type: 'tool_result', tool }));
+            },
             onInputTranscription: (text) => {
               ws.send(JSON.stringify({ type: 'input_transcription', text }));
             },
@@ -157,12 +165,12 @@ const server = serve({
           try {
             const data = JSON.parse(message);
             if (data.type === 'start') {
-              console.log('Starting Gemini Live session...');
+              console.log('Starting Gemini Live session...', data.config);
               await ws.data.session.connect(() => {
                 // Called when Gemini session is ready
                 ws.send(JSON.stringify({ type: 'ready' }));
                 console.log('✅ Gemini Live session ready, sent ready signal to client');
-              });
+              }, data.config);
             } else if (data.type === 'stop') {
               await ws.data.session.disconnect();
               console.log('Gemini Live session disconnected via stop signal');

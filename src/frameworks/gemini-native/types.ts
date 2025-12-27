@@ -6,6 +6,8 @@ export interface GeminiLiveSessionCallbacks {
   onError: (error: Error) => void;
   onClose?: (code?: number, reason?: string) => void;
   onInterruption?: (event: any) => void;
+  onToolCall?: (tool: { name: string; args: any }) => void;
+  onToolResult?: (tool: { name: string; result: any }) => void;
 }
 
 // Client -> Server messages

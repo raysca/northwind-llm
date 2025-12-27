@@ -16,6 +16,9 @@ export function useGeminiLive(endpoint = '/api/gemini-live') {
   // Audio visualization
   const [visualizerData, setVisualizerData] = useState<Uint8Array>(new Uint8Array(0));
 
+  // Tool execution state
+  const [currentTool, setCurrentTool] = useState<{ name: string; args: any } | null>(null);
+
   // Refs
   const wsRef = useRef<WebSocket | null>(null);
   const audioCapture = useAudioCapture();
@@ -139,6 +142,14 @@ export function useGeminiLive(endpoint = '/api/gemini-live') {
           setCurrentOutput('');
           break;
 
+        case 'tool_call':
+          setCurrentTool(msg.tool);
+          break;
+
+        case 'tool_result':
+          setCurrentTool(null);
+          break;
+
         case 'interruption':
           console.log('Interruption received, cancelling audio playback');
           cancelPlayback();
@@ -208,7 +219,12 @@ export function useGeminiLive(endpoint = '/api/gemini-live') {
       // Backend will connect to Gemini and send 'ready' when it's safe to send audio
       if (wsRef.current?.readyState === WebSocket.OPEN) {
         console.log('Sending start signal to backend...');
-        wsRef.current.send(JSON.stringify({ type: 'start' }));
+        wsRef.current.send(JSON.stringify({
+          type: 'start',
+          config: {
+            sampleRate: audioCapture.sampleRate
+          }
+        }));
       } else {
         throw new Error('WebSocket not connected');
       }
@@ -241,6 +257,7 @@ export function useGeminiLive(endpoint = '/api/gemini-live') {
 
     setStatus('idle');
     setVisualizerData(new Uint8Array(0));
+    setCurrentTool(null);
 
     console.log('Gemini Live session stopped');
   }, [audioCapture, stopPlayback]);
@@ -267,5 +284,6 @@ export function useGeminiLive(endpoint = '/api/gemini-live') {
     currentInput,
     currentOutput,
     visualizerData,
+    currentTool,
   };
 }

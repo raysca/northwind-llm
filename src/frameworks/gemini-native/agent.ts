@@ -1,57 +1,42 @@
-import { GoogleGenAI, LiveServerMessage, Modality, Type, FunctionDeclaration, EndSensitivity, ActivityHandling, TurnCoverage } from '@google/genai';
+import { GoogleGenAI, LiveServerMessage, Modality, FunctionDeclaration, EndSensitivity, ActivityHandling, TurnCoverage } from '@google/genai';
 import type { GeminiLiveSessionCallbacks } from './types';
 import {
-  listProductsTool,
-  getProductDetailsTool,
-} from '../mastra/agents/tools/products';
-import {
-  listOrdersTool,
-} from '../mastra/agents/tools/orders';
+  databaseQueryToolDeclaration,
+  databaseQueryToolExecutor,
+} from './tools/query-tool';
+import { getSchema } from '@/db/client';
 
 const MODEL_NAME = process.env.GEMINI_LIVE_MODEL || 'gemini-2.5-flash-native-audio-preview-09-2025';
 const VOICE_NAME = process.env.GEMINI_LIVE_VOICE || 'Kore';
 
 // Function declarations for Gemini - simplified to match working old implementation
 const functionDeclarations: FunctionDeclaration[] = [
-  {
-    name: 'list_products',
-    parameters: {
-      type: Type.OBJECT,
-      description: 'Get a list of all products in the database.',
-      properties: {},
-    },
-  },
-  {
-    name: 'get_product_details',
-    parameters: {
-      type: Type.OBJECT,
-      description: 'Get detailed information about a specific product by its ID.',
-      properties: {
-        id: { type: Type.STRING, description: 'The unique ID of the product.' },
-      },
-      required: ['id'],
-    },
-  },
-  {
-    name: 'list_orders',
-    parameters: {
-      type: Type.OBJECT,
-      description: 'Get a list of all current customer orders.',
-      properties: {},
-    },
-  },
+  databaseQueryToolDeclaration,
+];
+
+
+const tools = [
+  databaseQueryToolExecutor,
 ];
 
 export class GeminiLiveSession {
   private session: any = null;
   private connected = false;
   private callbacks: GeminiLiveSessionCallbacks;
+  private sampleRate = 16000;
 
   constructor(callbacks: GeminiLiveSessionCallbacks) {
     this.callbacks = callbacks;
   }
 
-  async connect(onReady?: () => void) {
+  async connect(onReady?: () => void, config?: { sampleRate?: number }) {
+    if (config?.sampleRate) {
+      this.sampleRate = config.sampleRate;
+      console.log(`Setting Gemini Live sample rate to ${this.sampleRate}Hz`);
+    } else {
+      console.log('Using default sample rate: 16000Hz');
+    }
+
     try {
       const apiKey = process.env.GOOGLE_API_KEY;
       if (!apiKey) {
@@ -76,12 +61,30 @@ export class GeminiLiveSession {
           systemInstruction: `You are the Northwind Back-Office Support Assistant. 
           You help employees check inventory, verify orders, and find customer details. 
           Use the provided tools to query the database accurately. 
+
+          The schema of the database is as follows:
+          ${getSchema()}
+
           Be helpful, professional, and concise.
+
+          Example questions:
+          - "How many products are in the database?"
+          - "What is the total value of orders for customer 'ALFKI'?"
+          - "Show me all orders for customer 'ALFKI'"
+          - Who supplied the customer 'ALFKI'?
+          - Get me the details of a product
+          - Get me the details of the order '10643'.
+          - Get me the details of a customer
+          - Search for a product
+          
+          IMPORTANT: You must ALWAYS speak with a standard British English accent and use British English vocabulary and spelling (e.g. "autumn" not "fall", "biscuit" not "cookie").
+          
           When the customers has no more questions, you should end the conversation.
           `,
-          // tools: [{ functionDeclarations }],
+          tools: [{ functionDeclarations }],
           speechConfig: {
             voiceConfig: { prebuiltVoiceConfig: { voiceName: VOICE_NAME } },
+            languageCode: 'en-US',
           },
           // Enable transcription for both input and output
           inputAudioTranscription: {},
@@ -135,7 +138,7 @@ export class GeminiLiveSession {
         this.session.sendRealtimeInput({
           media: {
             data: base64Data,
-            mimeType: 'audio/pcm;rate=16000',
+            mimeType: `audio/pcm;rate=${this.sampleRate}`,
           }
         });
       } catch (error) {
@@ -161,11 +164,13 @@ export class GeminiLiveSession {
     try {
       // Input transcription
       if (msg.serverContent?.inputTranscription) {
+        console.log('Input transcription:', msg.serverContent.inputTranscription.text);
         this.callbacks.onInputTranscription(msg.serverContent.inputTranscription.text ?? '');
       }
 
       // Output transcription
       if (msg.serverContent?.outputTranscription) {
+        console.log('Output transcription:', msg.serverContent.outputTranscription.text);
         this.callbacks.onOutputTranscription(msg.serverContent.outputTranscription.text ?? '');
       }
 
@@ -199,24 +204,25 @@ export class GeminiLiveSession {
   private async handleFunctionCalls(calls: any[]) {
     for (const fc of calls) {
       console.log('Function call:', fc.name, fc.args);
+
+      // Notify client that a tool is being called
+      this.callbacks.onToolCall?.({ name: fc.name, args: fc.args });
+
       let result: any;
 
       try {
         switch (fc.name) {
-          case 'list_products':
-            result = await listProductsTool.execute({});
-            break;
-          case 'get_product_details':
-            result = await getProductDetailsTool.execute(fc.args);
-            break;
-          case 'list_orders':
-            result = await listOrdersTool.execute({});
+          case 'database_query':
+            result = await databaseQueryToolExecutor(fc.args);
             break;
           default:
             result = { error: `Unknown function: ${fc.name}` };
         }
 
         console.log('Function result:', result);
+
+        // Notify client of tool result
+        this.callbacks.onToolResult?.({ name: fc.name, result });
 
         // Send tool response back to Gemini
         this.session.sendToolResponse({
