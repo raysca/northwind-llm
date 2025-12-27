@@ -2,6 +2,7 @@ import { serve } from "bun";
 import index from "./index.html";
 import * as vercelRoutes from "./frameworks/vercel/route";
 import { GeminiLiveAgent } from "./frameworks/mastra/agents/gemini-live";
+import { GeminiLiveSession } from "./frameworks/gemini-native";
 
 const server = serve({
   routes: {
@@ -15,6 +16,23 @@ const server = serve({
         return undefined;
       }
       return new Response("Upgrade failed", { status: 500 });
+    },
+
+    "/api/gemini-live": (req, server) => {
+      if (server.upgrade(req, { data: { isGeminiLive: true } })) {
+        return undefined;
+      }
+      return new Response("Upgrade failed", { status: 500 });
+    },
+
+    "/audio-processor-16k.js": async () => {
+      const file = Bun.file("public/audio-processor-16k.js");
+      return new Response(file, {
+        headers: {
+          "Content-Type": "application/javascript",
+          "Cache-Control": "public, max-age=31536000",
+        },
+      });
     },
 
     "/api/hello/:name": async req => {
@@ -34,7 +52,12 @@ const server = serve({
   },
   websocket: {
     // TypeScript: specify the type of ws.data like this
-    data: {} as { agent?: GeminiLiveAgent; isRealtime?: boolean },
+    data: {} as {
+      agent?: GeminiLiveAgent;
+      isRealtime?: boolean;
+      session?: GeminiLiveSession;
+      isGeminiLive?: boolean;
+    },
     async open(ws) {
       if (ws.data.isRealtime) {
         try {
@@ -59,6 +82,44 @@ const server = serve({
         }
       }
 
+      // NEW - Gemini Live handler
+      if (ws.data.isGeminiLive) {
+        try {
+          console.log('Initializing Gemini Live Session...');
+          const session = new GeminiLiveSession({
+            onAudio: (chunk) => {
+              ws.send(chunk);
+            },
+            onInputTranscription: (text) => {
+              ws.send(JSON.stringify({ type: 'input_transcription', text }));
+            },
+            onOutputTranscription: (text) => {
+              ws.send(JSON.stringify({ type: 'output_transcription', text }));
+            },
+            onTurnComplete: () => {
+              ws.send(JSON.stringify({ type: 'turn_complete' }));
+            },
+            onError: (error) => {
+              console.error('Gemini Live Session error:', error);
+              ws.send(JSON.stringify({ type: 'error', message: error.message }));
+            },
+            onClose: (code, reason) => {
+              console.log('Gemini session closed unexpectedly, notifying client', code, reason);
+              ws.send(JSON.stringify({
+                type: 'session_closed',
+                code,
+                reason: reason || 'Gemini session closed'
+              }));
+            },
+          });
+          ws.data.session = session;
+          ws.send(JSON.stringify({ type: 'websocket_connected' }));
+          console.log('Gemini Live Session initialized (WebSocket ready)');
+        } catch (error) {
+          console.error('Failed to initialize Gemini Live Session:', error);
+          ws.close(1011, 'Internal Server Error: Failed to initialize session');
+        }
+      }
     },
     async message(ws, message) {
       if (ws.data.isRealtime && ws.data.agent) {
@@ -82,11 +143,47 @@ const server = serve({
         }
         return;
       }
+
+      // NEW - Gemini Live handler
+      if (ws.data.isGeminiLive && ws.data.session) {
+        if (message instanceof Buffer || message instanceof Uint8Array) {
+          // Audio chunk from client
+          await ws.data.session.sendAudio(message as Buffer);
+        } else if (typeof message === 'string') {
+          try {
+            const data = JSON.parse(message);
+            if (data.type === 'start') {
+              console.log('Starting Gemini Live session...');
+              await ws.data.session.connect(() => {
+                // Called when Gemini session is ready
+                ws.send(JSON.stringify({ type: 'ready' }));
+                console.log('✅ Gemini Live session ready, sent ready signal to client');
+              });
+            } else if (data.type === 'stop') {
+              await ws.data.session.disconnect();
+              console.log('Gemini Live session disconnected via stop signal');
+            } else if (data.type === 'text') {
+              await ws.data.session.sendText(data.content);
+            }
+          } catch (e) {
+            console.error('Error handling Gemini Live message:', e);
+            ws.send(JSON.stringify({ type: 'error', message: (e as Error).message }));
+          }
+        }
+        return;
+      }
     },
     async close(ws) {
       if (ws.data.isRealtime && ws.data.agent) {
         await ws.data.agent.disconnect();
         console.log('Realtime agent disconnected');
+        return;
+      }
+
+      // NEW - Gemini Live cleanup
+      if (ws.data.isGeminiLive && ws.data.session) {
+        await ws.data.session.disconnect();
+        console.log('Gemini Live session disconnected');
         return;
       }
     },
