@@ -20,7 +20,7 @@ export function useAudioCapture() {
     await audioContextRef.current.audioWorklet.addModule('/audio-processor-16k.js');
 
     // Get microphone access
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, channelCount: 1, sampleRate: 16000 } });
     streamRef.current = stream;
 
     const source = audioContextRef.current.createMediaStreamSource(stream);
@@ -39,10 +39,13 @@ export function useAudioCapture() {
       callbackRef.current?.(event.data);
     };
 
-    // Connect audio graph: source -> analyser -> worklet
+    // Connect audio graph: source -> analyser -> worklet -> destination
+    // Note: Connection to destination is required for the graph to run, 
+    // even though the worklet produces no output (checking public/audio-processor-16k.js)
     analyser.connect(worklet);
+    worklet.connect(audioContextRef.current.destination);
 
-    console.log('Audio capture started at 16kHz');
+    console.log(`Audio capture started at ${audioContextRef.current.sampleRate}Hz`);
   }, []);
 
   const stopCapture = useCallback(() => {

@@ -13,9 +13,10 @@ export const databaseQueryToolDeclaration: FunctionDeclaration = {
     },
 };
 
-export const databaseQueryToolExecutor = (query: string) => {
+export const databaseQueryToolExecutor = ({ query }: { query: string }) => {
     console.log('Executing database query:', query);
     const db = getDb();
     const result = db.query(query);
-    return result;
+    const all = result.all();
+    return all;
 };

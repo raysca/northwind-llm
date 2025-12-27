@@ -49,14 +49,14 @@ export class GeminiLiveSession {
       this.session = await ai.live.connect({
         model: MODEL_NAME,
         config: {
-          realtimeInputConfig: {
-            automaticActivityDetection: {
-              disabled: false,
-              endOfSpeechSensitivity: EndSensitivity.END_SENSITIVITY_LOW,
-            },
-            activityHandling: ActivityHandling.ACTIVITY_HANDLING_UNSPECIFIED,
-            turnCoverage: TurnCoverage.TURN_INCLUDES_ALL_INPUT,
-          },
+          // realtimeInputConfig: {
+          //   automaticActivityDetection: {
+          //     disabled: false,
+          //     endOfSpeechSensitivity: EndSensitivity.END_SENSITIVITY_LOW,
+          //   },
+          //   activityHandling: ActivityHandling.ACTIVITY_HANDLING_UNSPECIFIED,
+          //   turnCoverage: TurnCoverage.TURN_INCLUDES_ALL_INPUT,
+          // },
           responseModalities: [Modality.AUDIO],
           systemInstruction: `You are the Northwind Back-Office Support Assistant. 
           You help employees check inventory, verify orders, and find customer details. 
@@ -83,7 +83,7 @@ export class GeminiLiveSession {
           `,
           tools: [{ functionDeclarations }],
           speechConfig: {
-            voiceConfig: { prebuiltVoiceConfig: { voiceName: VOICE_NAME } },
+            // voiceConfig: { prebuiltVoiceConfig: { voiceName: VOICE_NAME } },
             languageCode: 'en-US',
           },
           // Enable transcription for both input and output
@@ -138,7 +138,7 @@ export class GeminiLiveSession {
         this.session.sendRealtimeInput({
           media: {
             data: base64Data,
-            mimeType: `audio/pcm;rate=${this.sampleRate}`,
+            mimeType: `audio/pcm;rate=16000`,
           }
         });
       } catch (error) {
