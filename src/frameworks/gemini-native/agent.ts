@@ -1,4 +1,4 @@
-import { GoogleGenAI, LiveServerMessage, Modality, Type, FunctionDeclaration } from '@google/genai';
+import { GoogleGenAI, LiveServerMessage, Modality, Type, FunctionDeclaration, EndSensitivity, ActivityHandling, TurnCoverage } from '@google/genai';
 import type { GeminiLiveSessionCallbacks } from './types';
 import {
   listProductsTool,
@@ -64,8 +64,21 @@ export class GeminiLiveSession {
       this.session = await ai.live.connect({
         model: MODEL_NAME,
         config: {
+          realtimeInputConfig: {
+            automaticActivityDetection: {
+              disabled: false,
+              endOfSpeechSensitivity: EndSensitivity.END_SENSITIVITY_LOW,
+            },
+            activityHandling: ActivityHandling.ACTIVITY_HANDLING_UNSPECIFIED,
+            turnCoverage: TurnCoverage.TURN_INCLUDES_ALL_INPUT,
+          },
           responseModalities: [Modality.AUDIO],
-          systemInstruction: `You are the Northwind Back-Office Support Assistant. You help employees check inventory, verify orders, and find customer details. Use the provided tools to query the database accurately. Be helpful, professional, and concise.`,
+          systemInstruction: `You are the Northwind Back-Office Support Assistant. 
+          You help employees check inventory, verify orders, and find customer details. 
+          Use the provided tools to query the database accurately. 
+          Be helpful, professional, and concise.
+          When the customers has no more questions, you should end the conversation.
+          `,
           // tools: [{ functionDeclarations }],
           speechConfig: {
             voiceConfig: { prebuiltVoiceConfig: { voiceName: VOICE_NAME } },
@@ -148,17 +161,22 @@ export class GeminiLiveSession {
     try {
       // Input transcription
       if (msg.serverContent?.inputTranscription) {
-        this.callbacks.onInputTranscription(msg.serverContent.inputTranscription.text);
+        this.callbacks.onInputTranscription(msg.serverContent.inputTranscription.text ?? '');
       }
 
       // Output transcription
       if (msg.serverContent?.outputTranscription) {
-        this.callbacks.onOutputTranscription(msg.serverContent.outputTranscription.text);
+        this.callbacks.onOutputTranscription(msg.serverContent.outputTranscription.text ?? '');
       }
 
       // Turn complete
       if (msg.serverContent?.turnComplete) {
         this.callbacks.onTurnComplete();
+      }
+
+      // Interruption
+      if (msg.serverContent?.interrupted) {
+        this.callbacks.onInterruption?.(msg.serverContent.interrupted);
       }
 
       // Audio playback

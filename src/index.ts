@@ -90,6 +90,10 @@ const server = serve({
             onAudio: (chunk) => {
               ws.send(chunk);
             },
+            onInterruption: (event) => {
+              console.log('Gemini Live Session interruption:', event);
+              ws.send(JSON.stringify({ type: 'interruption', event }));
+            },
             onInputTranscription: (text) => {
               ws.send(JSON.stringify({ type: 'input_transcription', text }));
             },

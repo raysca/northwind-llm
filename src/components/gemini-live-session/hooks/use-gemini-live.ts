@@ -19,7 +19,7 @@ export function useGeminiLive(endpoint = '/api/gemini-live') {
   // Refs
   const wsRef = useRef<WebSocket | null>(null);
   const audioCapture = useAudioCapture();
-  const { playAudio, stopPlayback } = useAudioPlaybackLive();
+  const { playAudio, stopPlayback, cancelPlayback } = useAudioPlaybackLive();
   const visualizerFrameRef = useRef<number | null>(null);
   const updateVisualizerRef = useRef<(() => void) | null>(null);
 
@@ -136,6 +136,14 @@ export function useGeminiLive(endpoint = '/api/gemini-live') {
           });
           setCurrentInput('');
           setCurrentOutput('');
+          setCurrentOutput('');
+          break;
+
+        case 'interruption':
+          console.log('Interruption received, cancelling audio playback');
+          cancelPlayback();
+          // Optionally clear current output as it was interrupted
+          // setCurrentOutput((prev) => prev + ' [interrupted]');
           break;
 
         case 'error':
@@ -161,7 +169,7 @@ export function useGeminiLive(endpoint = '/api/gemini-live') {
           console.log('Unknown message type:', msg.type);
       }
     },
-    [currentInput, currentOutput, audioCapture, stopPlayback]
+    [currentInput, currentOutput, audioCapture, stopPlayback, cancelPlayback]
   );
 
   // Keep ref updated with latest handleServerMessage

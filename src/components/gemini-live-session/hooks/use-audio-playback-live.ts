@@ -73,9 +73,31 @@ export function useAudioPlaybackLive() {
     console.log('Audio playback stopped');
   }, []);
 
+  const cancelPlayback = useCallback(() => {
+    // Stop all playing sources
+    sourcesRef.current.forEach((source) => {
+      try {
+        source.stop();
+      } catch (e) {
+        // Already stopped
+      }
+    });
+    sourcesRef.current.clear();
+
+    // Reset start time to current time (so new audio starts immediately)
+    if (audioContextRef.current) {
+      nextStartTimeRef.current = audioContextRef.current.currentTime;
+    } else {
+      nextStartTimeRef.current = 0;
+    }
+
+    console.log('Audio playback cancelled (interrupted)');
+  }, []);
+
   return {
     playAudio,
     stopPlayback,
+    cancelPlayback,
     initAudioContext,
   };
 }
