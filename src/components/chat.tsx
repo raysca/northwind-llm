@@ -43,6 +43,16 @@ import {
     SourcesTrigger,
 } from '@/components/ai-elements/sources';
 import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
+import { RealtimeInterface } from './realtime-call';
+import { Phone } from 'lucide-react';
+import {
     Reasoning,
     ReasoningContent,
     ReasoningTrigger,
@@ -210,6 +220,25 @@ const ChatBot = () => {
                                     ))}
                                 </PromptInputSelectContent>
                             </PromptInputSelect>
+                            <Dialog>
+                                <DialogTrigger asChild>
+                                    <PromptInputButton variant="ghost">
+                                        <Phone size={16} />
+                                        <span>Call</span>
+                                    </PromptInputButton>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-4xl h-[80vh]">
+                                    <DialogHeader>
+                                        <DialogTitle>Mastra Live</DialogTitle>
+                                        <DialogDescription>
+                                            Talk to Mastra in real-time.
+                                        </DialogDescription>
+                                    </DialogHeader>
+                                    <div className="flex-1 h-full min-h-0">
+                                        <RealtimeInterface />
+                                    </div>
+                                </DialogContent>
+                            </Dialog>
                         </PromptInputTools>
                         <PromptInputSubmit disabled={!input && !status} status={status} />
                     </PromptInputFooter>
