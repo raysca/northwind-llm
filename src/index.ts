@@ -4,6 +4,7 @@ import * as vercelRoutes from "./frameworks/vercel/route";
 import { GeminiLiveAgent } from "./frameworks/mastra/agents/gemini-live";
 import { GeminiLiveSession } from "./frameworks/gemini-native";
 import { NativeSpeechAgent } from "./frameworks/native-speech/agent";
+import { WebsocketAgent } from "./frameworks/realtime/agent";
 
 const server = serve({
   routes: {
@@ -13,7 +14,7 @@ const server = serve({
     "/api/vercel": vercelRoutes,
 
     "/api/realtime": (req, server) => {
-      if (server.upgrade(req, { data: { isRealtime: true } })) {
+      if (server.upgrade(req, { data: { isWebsocketAgent: true } })) {
         return undefined;
       }
       return new Response("Upgrade failed", { status: 500 });
@@ -41,14 +42,7 @@ const server = serve({
           "Cache-Control": "public, max-age=31536000",
         },
       });
-    },
-
-    "/api/hello/:name": async req => {
-      const name = req.params.name;
-      return Response.json({
-        message: `Hello, ${name}!`,
-      });
-    },
+    }
   },
 
   development: process.env.NODE_ENV !== "production" && {
@@ -63,102 +57,120 @@ const server = serve({
     data: {} as {
       agent?: GeminiLiveAgent;
       isRealtime?: boolean;
+      isWebsocketAgent?: boolean;
       session?: GeminiLiveSession;
       isGeminiLive?: boolean;
       isSpeechEcho?: boolean;
       nativeAgent?: NativeSpeechAgent;
+      realtimeAgent?: WebsocketAgent;
     },
     async open(ws) {
-      if (ws.data.isRealtime) {
-        try {
-          console.log('Initializing Gemini Live Agent...');
-          const agent = new GeminiLiveAgent({
-            onAudio: (chunk) => {
-              ws.send(chunk);
-            },
-            onText: (text) => {
-              // Send text as control message
-              ws.send(JSON.stringify({ type: 'text', content: text }));
-            }
-          });
-          ws.data.agent = agent;
-          console.log('Gemini Live Agent initialized successfully');
-          // Don't connect yet!
-          return;
-        } catch (error) {
-          console.error('Failed to initialize Gemini Live Agent:', error);
-          ws.close(1011, 'Internal Server Error: Failed to initialize agent');
-          return;
-        }
-      }
+      // if (ws.data.isRealtime) {
+      //   try {
+      //     console.log('Initializing Gemini Live Agent...');
+      //     const agent = new GeminiLiveAgent({
+      //       onAudio: (chunk) => {
+      //         ws.send(chunk);
+      //       },
+      //       onText: (text) => {
+      //         // Send text as control message
+      //         ws.send(JSON.stringify({ type: 'text', content: text }));
+      //       }
+      //     });
+      //     ws.data.agent = agent;
+      //     console.log('Gemini Live Agent initialized successfully');
+      //     // Don't connect yet!
+      //     return;
+      //   } catch (error) {
+      //     console.error('Failed to initialize Gemini Live Agent:', error);
+      //     ws.close(1011, 'Internal Server Error: Failed to initialize agent');
+      //     return;
+      //   }
+      // }
 
       // NEW - Gemini Live handler
-      if (ws.data.isGeminiLive) {
-        try {
-          console.log('Initializing Gemini Live Session...');
-          const session = new GeminiLiveSession({
-            onAudio: (chunk) => {
-              ws.send(chunk);
-            },
-            onInterruption: (event) => {
-              console.log('Gemini Live Session interruption:', event);
-              ws.send(JSON.stringify({ type: 'interruption', event }));
-            },
-            onToolCall: (tool) => {
-              console.log('Gemini Live Session tool call:', tool);
-              ws.send(JSON.stringify({ type: 'tool_call', tool }));
-            },
-            onToolResult: (tool) => {
-              console.log('Gemini Live Session tool result:', tool);
-              ws.send(JSON.stringify({ type: 'tool_result', tool }));
-            },
-            onInputTranscription: (text) => {
-              ws.send(JSON.stringify({ type: 'input_transcription', text }));
-            },
-            onOutputTranscription: (text) => {
-              ws.send(JSON.stringify({ type: 'output_transcription', text }));
-            },
-            onTurnComplete: () => {
-              ws.send(JSON.stringify({ type: 'turn_complete' }));
-            },
-            onError: (error) => {
-              console.error('Gemini Live Session error:', error);
-              ws.send(JSON.stringify({ type: 'error', message: error.message }));
-            },
-            onClose: (code, reason) => {
-              console.log('Gemini session closed unexpectedly, notifying client', code, reason);
-              ws.send(JSON.stringify({
-                type: 'session_closed',
-                code,
-                reason: reason || 'Gemini session closed'
-              }));
-            },
-          });
-          ws.data.session = session;
-          ws.send(JSON.stringify({ type: 'websocket_connected' }));
-          console.log('Gemini Live Session initialized (WebSocket ready)');
-        } catch (error) {
-          console.error('Failed to initialize Gemini Live Session:', error);
-          ws.close(1011, 'Internal Server Error: Failed to initialize session');
-        }
-      }
+      // if (ws.data.isGeminiLive) {
+      //   try {
+      //     console.log('Initializing Gemini Live Session...');
+      //     const session = new GeminiLiveSession({
+      //       onAudio: (chunk) => {
+      //         ws.send(chunk);
+      //       },
+      //       onInterruption: (event) => {
+      //         console.log('Gemini Live Session interruption:', event);
+      //         ws.send(JSON.stringify({ type: 'interruption', event }));
+      //       },
+      //       onToolCall: (tool) => {
+      //         console.log('Gemini Live Session tool call:', tool);
+      //         ws.send(JSON.stringify({ type: 'tool_call', tool }));
+      //       },
+      //       onToolResult: (tool) => {
+      //         console.log('Gemini Live Session tool result:', tool);
+      //         ws.send(JSON.stringify({ type: 'tool_result', tool }));
+      //       },
+      //       onInputTranscription: (text) => {
+      //         ws.send(JSON.stringify({ type: 'input_transcription', text }));
+      //       },
+      //       onOutputTranscription: (text) => {
+      //         ws.send(JSON.stringify({ type: 'output_transcription', text }));
+      //       },
+      //       onTurnComplete: () => {
+      //         ws.send(JSON.stringify({ type: 'turn_complete' }));
+      //       },
+      //       onError: (error) => {
+      //         console.error('Gemini Live Session error:', error);
+      //         ws.send(JSON.stringify({ type: 'error', message: error.message }));
+      //       },
+      //       onClose: (code, reason) => {
+      //         console.log('Gemini session closed unexpectedly, notifying client', code, reason);
+      //         ws.send(JSON.stringify({
+      //           type: 'session_closed',
+      //           code,
+      //           reason: reason || 'Gemini session closed'
+      //         }));
+      //       },
+      //     });
+      //     ws.data.session = session;
+      //     ws.send(JSON.stringify({ type: 'websocket_connected' }));
+      //     console.log('Gemini Live Session initialized (WebSocket ready)');
+      //   } catch (error) {
+      //     console.error('Failed to initialize Gemini Live Session:', error);
+      //     ws.close(1011, 'Internal Server Error: Failed to initialize session');
+      //   }
+      // }
 
       // NEW - Speech Echo handler
-      if (ws.data.isSpeechEcho) {
-        console.log('Initializing Native Speech Agent...');
-        const nativeAgent = new NativeSpeechAgent({
-          onText: (text) => {
-            ws.send(JSON.stringify({ type: 'echo', data: text }));
+      // if (ws.data.isSpeechEcho) {
+      //   console.log('Initializing Native Speech Agent...');
+      //   const nativeAgent = new NativeSpeechAgent({
+      //     onText: (text) => {
+      //       ws.send(JSON.stringify({ type: 'echo', data: text }));
+      //     },
+      //     onConnect: () => {
+      //       console.log('Native Speech Agent connected');
+      //     },
+      //     onDisconnect: () => {
+      //       console.log('Native Speech Agent disconnected');
+      //     }
+      //   });
+      //   ws.data.nativeAgent = nativeAgent;
+      //   nativeAgent.connect();
+      // }
+
+      // NEW - Realtime handler
+      if (ws.data.isWebsocketAgent) {
+        console.log('Initializing Realtime Agent...');
+        const agent = new WebsocketAgent({
+          onMessage: (message) => {
+            ws.send(JSON.stringify(message));
           },
-          onConnect: () => {
-            console.log('Native Speech Agent connected');
-          },
-          onDisconnect: () => {
-            console.log('Native Speech Agent disconnected');
+          onError: (error) => {
+            console.error('Realtime Agent error:', error);
+            ws.send(JSON.stringify({ type: 'error', message: error.message }));
           }
         });
-        ws.data.nativeAgent = nativeAgent;
-        nativeAgent.connect();
+        ws.data.realtimeAgent = agent;
+        console.log('Realtime Agent initialized successfully');
       }
     },
     async message(ws, message) {
@@ -217,6 +229,13 @@ const server = serve({
       if (ws.data.isSpeechEcho && ws.data.nativeAgent) {
         console.log('Speech Echo received:', message.toString());
         await ws.data.nativeAgent.processText(message.toString());
+        return;
+      }
+
+      // NEW - Realtime handler
+      if (ws.data.realtimeAgent) {
+        const data = JSON.parse(message.toString());
+        ws.data.realtimeAgent.processText(data.content);
         return;
       }
     },

@@ -6,6 +6,8 @@ export const lmstudio = createOpenAICompatible({
     baseURL: 'http://localhost:1234/v1',
 });
 
+export const openaioss = lmstudio('openai/gpt-oss-20b');
+
 export const model = (() => {
     if (process.env.LLM_MODEL?.includes('lmstudio')) {
         console.log(`Using lmstudio: ${process.env.LLM_MODEL.replace('lmstudio_', '')}`);

@@ -7,12 +7,12 @@
 
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { App } from "./App";
+import { RealTimeChat } from "./RealTimeChat";
 
 const elem = document.getElementById("root")!;
 const app = (
   <StrictMode>
-    <App />
+    <RealTimeChat />
   </StrictMode>
 );
 

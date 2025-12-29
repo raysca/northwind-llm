@@ -1,4 +1,5 @@
 
+import { customersSchema, employeesSchema, ordersSchema, productsSchema } from "@/db/schema";
 import { z } from "zod";
 
 export const getByIdSchema = z.object({
@@ -41,3 +42,42 @@ export const listOrdersByCustomerSchema = z.object({
 export const listRecentOrdersSchema = z.object({
     limit: z.number().describe("The number of orders to return"),
 });
+
+export const StoreResponseSchema = z.discriminatedUnion("type", [
+    z.object({
+        type: z.literal("product"),
+        product: productsSchema.nullable(),
+    }),
+    z.object({
+        type: z.literal("products"),
+        products: productsSchema.array().nullable(),
+    }),
+    z.object({
+        type: z.literal("order"),
+        order: ordersSchema.nullable(),
+    }),
+    z.object({
+        type: z.literal("orders"),
+        orders: ordersSchema.array().nullable(),
+    }),
+    z.object({
+        type: z.literal("employee"),
+        employee: employeesSchema.nullable(),
+    }),
+    z.object({
+        type: z.literal("employees"),
+        employees: employeesSchema.array().nullable(),
+    }),
+    z.object({
+        type: z.literal("customer"),
+        customer: customersSchema.nullable(),
+    }),
+    z.object({
+        type: z.literal("customers"),
+        customers: customersSchema.array().nullable(),
+    }),
+    z.object({
+        type: z.literal("text_response"),
+        content: z.string().nullable(),
+    }),
+]);
