@@ -49,14 +49,9 @@ export class GeminiLiveSession {
       this.session = await ai.live.connect({
         model: MODEL_NAME,
         config: {
-          // realtimeInputConfig: {
-          //   automaticActivityDetection: {
-          //     disabled: false,
-          //     endOfSpeechSensitivity: EndSensitivity.END_SENSITIVITY_LOW,
-          //   },
-          //   activityHandling: ActivityHandling.ACTIVITY_HANDLING_UNSPECIFIED,
-          //   turnCoverage: TurnCoverage.TURN_INCLUDES_ALL_INPUT,
-          // },
+          realtimeInputConfig: {
+            turnCoverage: TurnCoverage.TURN_INCLUDES_ONLY_ACTIVITY,
+          },
           responseModalities: [Modality.AUDIO],
           systemInstruction: `You are the Northwind Back-Office Support Assistant. 
           You help employees check inventory, verify orders, and find customer details. 
@@ -164,14 +159,14 @@ export class GeminiLiveSession {
     try {
       // Input transcription
       if (msg.serverContent?.inputTranscription) {
-        console.log('Input transcription:', msg.serverContent.inputTranscription.text);
-        this.callbacks.onInputTranscription(msg.serverContent.inputTranscription.text ?? '');
+        console.log('Input transcription:', msg.serverContent.inputTranscription?.text);
+        this.callbacks.onInputTranscription(msg.serverContent.inputTranscription?.text ?? '');
       }
 
       // Output transcription
       if (msg.serverContent?.outputTranscription) {
-        console.log('Output transcription:', msg.serverContent.outputTranscription.text);
-        this.callbacks.onOutputTranscription(msg.serverContent.outputTranscription.text ?? '');
+        console.log('Output transcription:', msg.serverContent.outputTranscription?.text);
+        this.callbacks.onOutputTranscription(msg.serverContent.outputTranscription?.text ?? '');
       }
 
       // Turn complete
@@ -190,6 +185,12 @@ export class GeminiLiveSession {
         const audioBuffer = Buffer.from(audioBase64, 'base64');
         this.callbacks.onAudio(audioBuffer);
       }
+
+      // Text response
+      // if (msg.serverContent?.modelTurn?.parts?.[0]?.text) {
+      //   console.log('Model turn text:', msg.serverContent.modelTurn?.parts?.[0]?.text);
+      //   this.callbacks.onText(msg.serverContent.modelTurn?.parts?.[0]?.text ?? '');
+      // }
 
       // Function calls
       if (msg.toolCall?.functionCalls) {

@@ -1,9 +1,10 @@
 import { useState } from "react";
 import ChatBot from "./components/chat";
 import { GeminiLiveInterface } from "./components/gemini-live-session";
+import { SpeechEcho } from "./components/speech-echo";
 import "./index.css";
 
-type Mode = 'chat' | 'mastra-voice' | 'gemini-native-voice';
+type Mode = 'chat' | 'mastra-voice' | 'gemini-native-voice' | 'speech-echo';
 
 export function App() {
   const [mode, setMode] = useState<Mode>('gemini-native-voice');
@@ -15,8 +16,8 @@ export function App() {
         <button
           onClick={() => setMode('chat')}
           className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${mode === 'chat'
-              ? 'bg-indigo-600 text-white'
-              : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+            ? 'bg-indigo-600 text-white'
+            : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
             }`}
         >
           Chat
@@ -24,8 +25,8 @@ export function App() {
         <button
           onClick={() => setMode('mastra-voice')}
           className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${mode === 'mastra-voice'
-              ? 'bg-indigo-600 text-white'
-              : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+            ? 'bg-indigo-600 text-white'
+            : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
             }`}
         >
           Mastra Voice
@@ -33,11 +34,20 @@ export function App() {
         <button
           onClick={() => setMode('gemini-native-voice')}
           className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${mode === 'gemini-native-voice'
-              ? 'bg-indigo-600 text-white'
-              : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+            ? 'bg-indigo-600 text-white'
+            : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
             }`}
         >
           Gemini Native Voice
+        </button>
+        <button
+          onClick={() => setMode('speech-echo')}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${mode === 'speech-echo'
+            ? 'bg-indigo-600 text-white'
+            : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+            }`}
+        >
+          Speech Echo
         </button>
       </div>
 
@@ -53,6 +63,11 @@ export function App() {
         </div>
       )}
       {mode === 'gemini-native-voice' && <GeminiLiveInterface />}
+      {mode === 'speech-echo' && (
+        <div className="flex h-screen w-full items-center justify-center bg-black">
+          <SpeechEcho />
+        </div>
+      )}
     </>
   );
 }
