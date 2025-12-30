@@ -118,7 +118,7 @@ For more information, read the Bun API docs in `node_modules/bun-types/docs/**.m
 
 ## Project-Specific Architecture
 
-This is an AI-powered Northwind store assistant showcasing two agent frameworks: **Vercel AI SDK** and **Mastra**. The application provides both text chat and real-time voice interactions with a SQLite database.
+This is an AI-powered Northwind store assistant showcasing real-time voice interactions with a SQLite database using Google Gemini's native audio capabilities and Mastra framework.
 
 ### Commands
 
@@ -139,34 +139,47 @@ bun lmstudio     # Run with LMStudio local models
 - **IMPORTANT:** All database fields use **PascalCase** naming convention (e.g., `ProductName`, `CustomerId`, `OrderDate`)
 
 **Query Functions:**
-- `src/db/client.ts` - Singleton database connection
+- `src/db/client.ts` - Singleton database connection and `getSchema()` helper
 - `src/db/products.ts` - Product queries (`getProductById`, `searchProducts`, `getProductsByCategory`, etc.)
 - `src/db/orders.ts` - Order queries (`getOrders`, `getOrdersByCustomer`, `getTotalSales`, etc.)
 - `src/db/customers.ts`, `employees.ts` - Additional entity queries
 
 **Input Validation:**
-- `src/frameworks/schema.ts` - Centralized Zod schemas for tool inputs (shared between Vercel and Mastra)
-- Use these schemas for consistent validation across both frameworks
+- `src/frameworks/schema.ts` - Centralized Zod schemas for tool inputs and structured response types
+- Use these schemas for consistent validation across frameworks
 
 ### Agent Framework Implementations
 
-The project demonstrates two distinct AI agent implementations:
+The project demonstrates three AI agent implementations:
 
-#### 1. Vercel AI SDK (Text Chat)
-- **Location:** `src/frameworks/vercel/`
-- **Entry Point:** `src/frameworks/vercel/route.ts` (handles `POST /api/vercel`)
-- **Agent:** Uses `ToolLoopAgent` from Vercel AI SDK
-- **Tools:** `src/frameworks/vercel/tools/` (product.ts, order.ts)
-- **Instructions:** `src/instructions/store-assistant.md`
-- **Model:** Configurable via `LLM_MODEL` env var (supports OpenAI, DeepSeek, LMStudio)
+#### 1. Gemini Native Audio (Primary Voice Implementation)
+- **Location:** `src/frameworks/gemini-native/`
+- **Entry Point:** `src/index.ts` WebSocket handler for `/api/gemini-live`
+- **Agent:** `src/frameworks/gemini-native/agent.ts` - Direct integration with Google Gemini Live API using `@google/genai` SDK
+- **Tools:**
+  - `tools/query-tool.ts` - Database queries via SQL
+  - `tools/display-tool.ts` - Structured content display (products, orders, etc.)
+  - `tools/termination-tool.ts` - Session termination
+- **Model:** `gemini-2.5-flash-native-audio-preview-09-2025` (or configurable via `GEMINI_LIVE_MODEL`)
+- **Audio:** 16kHz PCM16 sample rate
+- **Features:**
+  - Real-time bidirectional audio streaming
+  - Tool calling with automatic execution and response
+  - Input/output transcription events
+  - Turn-based conversation management
 
-#### 2. Mastra Framework (Voice + Chat)
-- **Location:** `src/frameworks/mastra/`
+#### 2. Mastra Framework (Voice Alternative)
+- **Location:** `src/frameworks/mastra/agents/`
+- **Agent:** `src/frameworks/mastra/agents/voice.ts` - Uses Mastra's voice capabilities
+- **Tools:** `src/frameworks/mastra/agents/tools/` (database query tools)
+- **Note:** Alternative implementation pattern for voice agents using Mastra SDK
+
+#### 3. Realtime WebSocket Agent
+- **Location:** `src/frameworks/realtime/`
+- **Agent:** `src/frameworks/realtime/agent.ts` - Generic WebSocket agent wrapper
+- **Mastra Integration:** `src/frameworks/realtime/mastra.ts` - Mastra agent with LMStudio/OpenAI models
 - **Entry Point:** `src/index.ts` WebSocket handler for `/api/realtime`
-- **Agent:** `src/frameworks/mastra/agents/gemini-live.ts` - Uses Mastra's `Agent` with `GeminiLiveVoice`
-- **Tools:** `src/frameworks/mastra/agents/tools/` (products.ts, orders.ts)
-- **Model:** `gemini-2.0-flash-exp` with Google Gemini Live API
-- **Features:** Real-time audio streaming via WebSocket
+- **Features:** Text-based agent interactions via WebSocket
 
 ### Real-Time Voice Component
 
@@ -175,49 +188,97 @@ The project demonstrates two distinct AI agent implementations:
 **Key Parts:**
 - `hooks/use-realtime.ts` - WebSocket connection management, audio I/O, connection state
 - `hooks/use-audio-player.ts` - Audio playback buffer and Web Audio API
-- `lib/audio-processor.ts` - Audio Worklet for PCM encoding at 24kHz sample rate
+- `lib/audio-processor.ts` - Audio Worklet for PCM encoding at 16kHz sample rate
 - `ui/realtime-interface.tsx` - Main UI component
 - `ui/controls.tsx`, `visualizer.tsx`, `status-indicator.tsx` - UI subcomponents
 
-**Audio Flow:**
-1. Microphone → Audio Worklet (PCM encoding) → WebSocket → Gemini Live
+**Audio Flow (Gemini Live):**
+1. Microphone → Audio Worklet (PCM16 encoding at 16kHz) → WebSocket → Gemini Live
 2. Gemini Live → WebSocket → Audio Player → Browser audio output
+
+**Key Callbacks:**
+- `onAudio` - Receives audio chunks from Gemini
+- `onToolCall` / `onToolResult` - Tool execution lifecycle
+- `onInputTranscription` / `onOutputTranscription` - Conversation transcripts
+- `onTurnComplete` - Signals end of Gemini's response turn
+- `onInterruption` - Handles user interruptions
 
 ### API Routes
 
 The server (`src/index.ts`) exposes:
-- `POST /api/vercel` - Vercel AI SDK chat endpoint (streaming text responses)
-- `WS /api/realtime` - WebSocket for Gemini Live voice calls
+- `WS /api/gemini-live` - WebSocket for Gemini native audio (primary)
+- `WS /api/realtime` - WebSocket for Mastra/generic realtime agents
 - `/` - HTML entry point (serves `src/index.html`)
+- `/audio-processor-16k.js` - Audio worklet script
 
 ### Environment Variables
 
 Required in `.env`:
 ```
-GOOGLE_API_KEY=...      # For Gemini models
-GEMINI_API_KEY=...      # Alternative key name
-LLM_MODEL=...           # Model selection (e.g., "gpt-4o", "deepseek/deepseek-r1", "lmstudio_model")
+GOOGLE_API_KEY=...           # For Gemini models (required for /api/gemini-live)
+GEMINI_API_KEY=...           # Alternative key name
+GEMINI_LIVE_MODEL=...        # Optional: Override default model
+GEMINI_LIVE_VOICE=...        # Optional: Voice name (default: "Kore")
+LLM_MODEL=...                # For Mastra/realtime agents (e.g., "gpt-4o", "lmstudio_model")
 ```
 
 ### UI Components
 
-- **Chat UI:** `src/components/chat.tsx` - Uses `useChat()` hook from `@ai-sdk/react`
-- **AI Elements:** `src/components/ai-elements/` - Specialized components for rendering AI responses (messages, reasoning, sources, tool calls)
+- **AI Elements:** `src/components/ai-elements/` - Specialized components for rendering AI responses:
+  - `tool.tsx` - Tool call visualization
+  - `reasoning.tsx` - Chain-of-thought display
+  - `sources.tsx` - Source citation rendering
+  - `code-block.tsx` - Syntax-highlighted code blocks
+  - Additional elements for artifacts, confirmations, tasks, etc.
 - **Shadcn UI:** `src/components/ui/` - Radix UI-based components (button, dialog, select, etc.)
+- **Voice Interface:** `src/components/realtime-call/` - Real-time audio chat UI
 
 ### Code Patterns
 
-**Adding New Tools:**
-1. Create tool function in `src/frameworks/{vercel|mastra}/agents/tools/`
-2. Add input validation schema to `src/frameworks/schema.ts`
-3. Implement database query in `src/db/*.ts` if needed
-4. Register tool in agent configuration
+**Adding New Tools (Gemini Native):**
+1. Create tool declaration in `src/frameworks/gemini-native/tools/` following the pattern:
+   ```ts
+   export const myToolDeclaration: FunctionDeclaration = {
+     name: "tool_name",
+     description: "Tool description for the model",
+     parameters: { /* JSON Schema */ }
+   };
+
+   export const myToolExecutor = async (args: any) => {
+     // Tool implementation
+     return result;
+   };
+   ```
+2. Add declaration to `functionDeclarations` array in `agent.ts`
+3. Add executor to tool execution logic in `agent.ts`
+4. Tool results are automatically sent back to Gemini
+
+**Adding New Tools (Mastra):**
+1. Create tool in `src/frameworks/mastra/agents/tools/`
+2. Register in agent's `tools` object
+3. Use Zod schema for input validation
 
 **Database Queries:**
-- Always use the query functions from `src/db/` rather than raw SQL
-- Remember PascalCase field naming when writing new queries
+- Always use the query functions from `src/db/` rather than raw SQL when possible
+- For custom queries, use `getDb()` from `src/db/client.ts`
+- Remember PascalCase field naming when writing SQL queries
 - Use Zod schemas from `src/db/schema.ts` for type safety
 
+**Structured Responses:**
+- Use `StoreResponseSchema` from `src/frameworks/schema.ts` for type-safe responses
+- Supports product, products, order, orders, employee, employees, customer, customers, and text_response types
+
 **Model Configuration:**
-- Model selection is centralized in `src/lib/model.ts`
-- Supports prefixes: `lmstudio_`, `google/`, or defaults to OpenAI-compatible
+- Gemini models: Configured directly in agent files or via `GEMINI_LIVE_MODEL` env var
+- Other models: Use `src/lib/model.ts` which supports `lmstudio_` prefix for local models
+
+**WebSocket Handling:**
+- Each WebSocket connection can be either `isGeminiLive` or `isWebsocketAgent`
+- Data is attached to `ws.data` and includes session/agent instances
+- Binary messages are treated as audio (for Gemini Live)
+- JSON messages are control signals (start, stop, text, etc.)
+
+**Audio Processing:**
+- Always use 16kHz sample rate for Gemini Live (configurable but default)
+- Audio worklet (`public/audio-processor-16k.js`) handles PCM16 encoding
+- Audio chunks are sent as raw Buffer/Uint8Array over WebSocket
