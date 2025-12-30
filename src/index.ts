@@ -3,7 +3,6 @@ import index from "./index.html";
 import * as vercelRoutes from "./frameworks/vercel/route";
 import { GeminiLiveAgent } from "./frameworks/mastra/agents/gemini-live";
 import { GeminiLiveSession } from "./frameworks/gemini-native";
-import { NativeSpeechAgent } from "./frameworks/native-speech/agent";
 import { WebsocketAgent } from "./frameworks/realtime/agent";
 
 const server = serve({
@@ -22,13 +21,6 @@ const server = serve({
 
     "/api/gemini-live": (req, server) => {
       if (server.upgrade(req, { data: { isGeminiLive: true } })) {
-        return undefined;
-      }
-      return new Response("Upgrade failed", { status: 500 });
-    },
-
-    "/api/speech-echo": (req, server) => {
-      if (server.upgrade(req, { data: { isSpeechEcho: true } })) {
         return undefined;
       }
       return new Response("Upgrade failed", { status: 500 });
@@ -60,8 +52,6 @@ const server = serve({
       isWebsocketAgent?: boolean;
       session?: GeminiLiveSession;
       isGeminiLive?: boolean;
-      isSpeechEcho?: boolean;
-      nativeAgent?: NativeSpeechAgent;
       realtimeAgent?: WebsocketAgent;
     },
     async open(ws) {
@@ -139,23 +129,6 @@ const server = serve({
       //   }
       // }
 
-      // NEW - Speech Echo handler
-      // if (ws.data.isSpeechEcho) {
-      //   console.log('Initializing Native Speech Agent...');
-      //   const nativeAgent = new NativeSpeechAgent({
-      //     onText: (text) => {
-      //       ws.send(JSON.stringify({ type: 'echo', data: text }));
-      //     },
-      //     onConnect: () => {
-      //       console.log('Native Speech Agent connected');
-      //     },
-      //     onDisconnect: () => {
-      //       console.log('Native Speech Agent disconnected');
-      //     }
-      //   });
-      //   ws.data.nativeAgent = nativeAgent;
-      //   nativeAgent.connect();
-      // }
 
       // NEW - Realtime handler
       if (ws.data.isWebsocketAgent) {
@@ -225,13 +198,6 @@ const server = serve({
         return;
       }
 
-      // NEW - Speech Echo handler
-      if (ws.data.isSpeechEcho && ws.data.nativeAgent) {
-        console.log('Speech Echo received:', message.toString());
-        await ws.data.nativeAgent.processText(message.toString());
-        return;
-      }
-
       // NEW - Realtime handler
       if (ws.data.realtimeAgent) {
         const data = JSON.parse(message.toString());
@@ -253,11 +219,6 @@ const server = serve({
         return;
       }
 
-      if (ws.data.isSpeechEcho && ws.data.nativeAgent) {
-        await ws.data.nativeAgent.disconnect();
-        console.log('Speech Echo client disconnected');
-        return;
-      }
     },
   }
 });
