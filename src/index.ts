@@ -107,7 +107,6 @@ const server = serve({
         console.log('Initializing Realtime Agent...');
         const agent = new WebsocketAgent({
           onMessage: (message) => {
-            console.log('Realtime Agent message:', message);
             ws.send(JSON.stringify(message));
           },
           onError: (error) => {

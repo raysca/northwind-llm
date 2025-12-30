@@ -23,10 +23,10 @@ import SuggestionList from './Suggestion';
 import { ProductCard } from '@/components/real-time-agent/cards/ProductCard';
 import { EmployeeCard } from '@/components/real-time-agent/cards/EmployeeCard';
 import { CustomerCard } from '@/components/real-time-agent/cards/CustomerCard';
-import { productsSchema, employeesSchema, customersSchema } from '@/db/schema';
+import { OrderCard } from '@/components/real-time-agent/cards/OrderCard';
+import { productsSchema, employeesSchema, customersSchema, ordersSchema } from '@/db/schema';
 import { Loader } from '@/components/ai-elements/loader';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button'; // Assuming standard UI button exists, if not use standard HTML button or ai-elements if available
 
 const EmptyState = ({ messages }: { messages: (z.infer<typeof StoreResponseSchema> | UserMessage)[] }) => {
 
@@ -69,6 +69,14 @@ const MessageItem = ({ message }: { message: z.infer<typeof StoreResponseSchema>
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         {message.customers.map((c) => (
                             <CustomerCard key={c.Id} customer={c as z.infer<typeof customersSchema>} />
+                        ))}
+                    </div>
+                )}
+                {message.type === 'order' && message.order && <OrderCard order={message.order as z.infer<typeof ordersSchema>} />}
+                {message.type === 'orders' && message.orders && (
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        {message.orders.map((o) => (
+                            <OrderCard key={o.Id} order={o as z.infer<typeof ordersSchema>} />
                         ))}
                     </div>
                 )}

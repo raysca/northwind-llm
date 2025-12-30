@@ -15,7 +15,7 @@ export function AudioVisualizerLive({ data, isActive }: AudioVisualizerLiveProps
   });
 
   return (
-    <div className="h-12 bg-slate-900/80 border border-slate-800 rounded-xl flex items-center justify-center space-x-1 px-4 mx-6 mb-4">
+    <div className="h-full min-h-[60px] w-full bg-slate-900/80 border border-slate-800 rounded-xl flex items-center justify-center space-x-1 px-4">
       {bars.map((height, i) => (
         <div
           key={i}
