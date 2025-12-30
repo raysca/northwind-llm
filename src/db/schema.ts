@@ -43,7 +43,7 @@ export const productsSchema = z.object({
     UnitsInStock: z.number().nullable(),
     UnitsOnOrder: z.number().nullable(),
     ReorderLevel: z.number().nullable(),
-    Discontinued: z.number().or(z.boolean()), // Some versions use 0/1, others boolean
+    Discontinued: z.number().or(z.boolean()).nullable(), // Some versions use 0/1, others boolean
 });
 
 export const customersSchema = z.object({
