@@ -19,6 +19,9 @@ export function useGeminiLive(endpoint = '/api/gemini-live') {
   // Tool execution state
   const [currentTool, setCurrentTool] = useState<{ name: string; args: any } | null>(null);
 
+  // Displayed content state
+  const [displayedContent, setDisplayedContent] = useState<any | null>(null);
+
   // Refs
   const wsRef = useRef<WebSocket | null>(null);
   const audioCapture = useAudioCapture();
@@ -144,6 +147,11 @@ export function useGeminiLive(endpoint = '/api/gemini-live') {
 
         case 'tool_call':
           setCurrentTool(msg.tool);
+          // Check for display_content tool call
+          if (msg.tool.name === 'display_content') {
+            console.log('Received display_content tool call:', msg.tool.args);
+            setDisplayedContent(msg.tool.args);
+          }
           break;
 
         case 'tool_result':
@@ -257,7 +265,10 @@ export function useGeminiLive(endpoint = '/api/gemini-live') {
 
     setStatus('idle');
     setVisualizerData(new Uint8Array(0));
+    setStatus('idle');
+    setVisualizerData(new Uint8Array(0));
     setCurrentTool(null);
+    setDisplayedContent(null);
 
     console.log('Gemini Live session stopped');
   }, [audioCapture, stopPlayback]);
@@ -285,5 +296,6 @@ export function useGeminiLive(endpoint = '/api/gemini-live') {
     currentOutput,
     visualizerData,
     currentTool,
+    displayedContent,
   };
 }

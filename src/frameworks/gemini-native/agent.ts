@@ -4,6 +4,14 @@ import {
   databaseQueryToolDeclaration,
   databaseQueryToolExecutor,
 } from './tools/query-tool';
+import {
+  displayContentToolDeclaration,
+  displayContentToolExecutor,
+} from './tools/display-tool';
+import {
+  endSessionToolDeclaration,
+  endSessionToolExecutor,
+} from './tools/termination-tool';
 import { getSchema } from '@/db/client';
 
 const MODEL_NAME = process.env.GEMINI_LIVE_MODEL || 'gemini-2.5-flash-native-audio-preview-09-2025';
@@ -12,6 +20,8 @@ const VOICE_NAME = process.env.GEMINI_LIVE_VOICE || 'Kore';
 // Function declarations for Gemini - simplified to match working old implementation
 const functionDeclarations: FunctionDeclaration[] = [
   databaseQueryToolDeclaration,
+  displayContentToolDeclaration,
+  endSessionToolDeclaration,
 ];
 
 
@@ -72,9 +82,12 @@ export class GeminiLiveSession {
           - Get me the details of a customer
           - Search for a product
           
+          When you want to show the user details about a product, order, employee, or customer, ALWAYS use the \`display_content\` tool. 
+          For example, if the user asks "Show me product 5", query the database first, then use \`display_content\` with type='product' and the product data.
+          
           IMPORTANT: You must ALWAYS speak with a standard British English accent and use British English vocabulary and spelling (e.g. "autumn" not "fall", "biscuit" not "cookie").
           
-          When the customers has no more questions, you should end the conversation.
+          When the user says they are done or asks to stop/end the conversation, you must use the \`end_session\` tool to terminate the call.
           `,
           tools: [{ functionDeclarations }],
           speechConfig: {
@@ -215,6 +228,14 @@ export class GeminiLiveSession {
         switch (fc.name) {
           case 'database_query':
             result = await databaseQueryToolExecutor(fc.args);
+            break;
+          case 'display_content':
+            result = await displayContentToolExecutor(fc.args);
+            break;
+          case 'end_session':
+            result = await endSessionToolExecutor(fc.args);
+            // Initiate disconnect sequence
+            setTimeout(() => this.disconnect(), 500); // Give a brief moment for the audio response/acknowledgement if any
             break;
           default:
             result = { error: `Unknown function: ${fc.name}` };

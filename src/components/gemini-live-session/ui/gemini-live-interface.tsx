@@ -4,6 +4,10 @@ import { AudioVisualizerLive } from './audio-visualizer-live';
 import { CallControlsLive } from './call-controls-live';
 import { ToolCallIndicator } from './tool-call-indicator';
 import { useGeminiLive } from '../hooks/use-gemini-live';
+import { ProductCard } from '@/components/real-time-agent/cards/ProductCard';
+import { OrderCard } from '@/components/real-time-agent/cards/OrderCard';
+import { EmployeeCard } from '@/components/real-time-agent/cards/EmployeeCard';
+import { CustomerCard } from '@/components/real-time-agent/cards/CustomerCard';
 
 export function GeminiLiveInterface() {
   const {
@@ -16,6 +20,7 @@ export function GeminiLiveInterface() {
     currentOutput,
     visualizerData,
     currentTool,
+    displayedContent,
   } = useGeminiLive();
 
   const isActive = status === 'connected';
@@ -58,6 +63,62 @@ export function GeminiLiveInterface() {
               isActive={isActive}
             />
           </div>
+
+          {/* Content Display */}
+          {displayedContent && (
+            <div className="flex-none p-2 border border-slate-800 rounded-md bg-slate-900/50">
+              <h3 className="text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wider">
+                Displayed Content
+              </h3>
+              <div className="flex justify-center">
+                {displayedContent.type === 'product' && displayedContent.product && (
+                  <ProductCard product={displayedContent.product} />
+                )}
+                {displayedContent.type === 'products' && displayedContent.products && (
+                  <div className="flex flex-col gap-2 w-full">
+                    {displayedContent.products.map((p: any) => (
+                      <ProductCard key={p.Id} product={p} />
+                    ))}
+                  </div>
+                )}
+                {displayedContent.type === 'order' && displayedContent.order && (
+                  <OrderCard order={displayedContent.order} />
+                )}
+                {displayedContent.type === 'orders' && displayedContent.orders && (
+                  <div className="flex flex-col gap-2 w-full">
+                    {displayedContent.orders.map((o: any) => (
+                      <OrderCard key={o.Id} order={o} />
+                    ))}
+                  </div>
+                )}
+                {displayedContent.type === 'employee' && displayedContent.employee && (
+                  <EmployeeCard employee={displayedContent.employee} />
+                )}
+                {displayedContent.type === 'employees' && displayedContent.employees && (
+                  <div className="flex flex-col gap-2 w-full">
+                    {displayedContent.employees.map((e: any) => (
+                      <EmployeeCard key={e.Id} employee={e} />
+                    ))}
+                  </div>
+                )}
+                {displayedContent.type === 'customer' && displayedContent.customer && (
+                  <CustomerCard customer={displayedContent.customer} />
+                )}
+                {displayedContent.type === 'customers' && displayedContent.customers && (
+                  <div className="flex flex-col gap-2 w-full">
+                    {displayedContent.customers.map((c: any) => (
+                      <CustomerCard key={c.Id} customer={c} />
+                    ))}
+                  </div>
+                )}
+                {displayedContent.type === 'text_response' && (
+                  <div className="p-4 bg-slate-800 rounded-md text-sm">
+                    {displayedContent.content}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
         </div>
 

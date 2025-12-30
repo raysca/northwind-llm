@@ -66,6 +66,7 @@ export function useAudioCapture() {
   return {
     startCapture,
     stopCapture,
+    sampleRate: 16000,
     analyserNode: analyserRef.current,
   };
 }
