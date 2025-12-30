@@ -45,13 +45,6 @@ export class WebsocketAgent {
             }
         });
 
-        // const uiMessages = response.aisdk.v5.toUIMessageStream();
-        // uiMessages.pipeTo(new WritableStream({
-        //     write: (chunk) => {
-        //         this.params.onMessage(chunk);
-        //     }
-        // }));
-
         for await (const chunk of response.fullStream) {
             if (filteredMessages.includes(chunk.type)) {
                 continue;

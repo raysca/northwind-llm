@@ -3,7 +3,7 @@ import ChatBot from "./components/chat";
 import { GeminiLiveInterface } from "./components/gemini-live-session";
 import "./index.css";
 
-type Mode = 'chat' | 'mastra-voice' | 'gemini-native-voice';
+type Mode = 'chat' | 'gemini-native-voice';
 
 export function App() {
   const [mode, setMode] = useState<Mode>('gemini-native-voice');
@@ -22,15 +22,6 @@ export function App() {
           Chat
         </button>
         <button
-          onClick={() => setMode('mastra-voice')}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${mode === 'mastra-voice'
-            ? 'bg-indigo-600 text-white'
-            : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-            }`}
-        >
-          Mastra Voice
-        </button>
-        <button
           onClick={() => setMode('gemini-native-voice')}
           className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${mode === 'gemini-native-voice'
             ? 'bg-indigo-600 text-white'
@@ -45,11 +36,6 @@ export function App() {
       {mode === 'chat' && (
         <div className="container mx-auto p-8 text-center relative z-10">
           <ChatBot />
-        </div>
-      )}
-      {mode === 'mastra-voice' && (
-        <div className="text-white">
-          <p className="text-center py-20">Mastra Voice implementation - integrate RealtimeInterface here</p>
         </div>
       )}
       {mode === 'gemini-native-voice' && <GeminiLiveInterface />}

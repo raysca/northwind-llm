@@ -1,6 +1,5 @@
 import { serve } from "bun";
 import index from "./index.html";
-import { GeminiLiveAgent } from "./frameworks/mastra/agents/gemini-live";
 import { GeminiLiveSession } from "./frameworks/gemini-native";
 import { WebsocketAgent } from "./frameworks/realtime/agent";
 
@@ -44,87 +43,63 @@ const server = serve({
   websocket: {
     // TypeScript: specify the type of ws.data like this
     data: {} as {
-      agent?: GeminiLiveAgent;
-      isRealtime?: boolean;
       isWebsocketAgent?: boolean;
       session?: GeminiLiveSession;
       isGeminiLive?: boolean;
       realtimeAgent?: WebsocketAgent;
     },
     async open(ws) {
-      // if (ws.data.isRealtime) {
-      //   try {
-      //     console.log('Initializing Gemini Live Agent...');
-      //     const agent = new GeminiLiveAgent({
-      //       onAudio: (chunk) => {
-      //         ws.send(chunk);
-      //       },
-      //       onText: (text) => {
-      //         // Send text as control message
-      //         ws.send(JSON.stringify({ type: 'text', content: text }));
-      //       }
-      //     });
-      //     ws.data.agent = agent;
-      //     console.log('Gemini Live Agent initialized successfully');
-      //     // Don't connect yet!
-      //     return;
-      //   } catch (error) {
-      //     console.error('Failed to initialize Gemini Live Agent:', error);
-      //     ws.close(1011, 'Internal Server Error: Failed to initialize agent');
-      //     return;
-      //   }
-      // }
 
       // NEW - Gemini Live handler
-      // if (ws.data.isGeminiLive) {
-      //   try {
-      //     console.log('Initializing Gemini Live Session...');
-      //     const session = new GeminiLiveSession({
-      //       onAudio: (chunk) => {
-      //         ws.send(chunk);
-      //       },
-      //       onInterruption: (event) => {
-      //         console.log('Gemini Live Session interruption:', event);
-      //         ws.send(JSON.stringify({ type: 'interruption', event }));
-      //       },
-      //       onToolCall: (tool) => {
-      //         console.log('Gemini Live Session tool call:', tool);
-      //         ws.send(JSON.stringify({ type: 'tool_call', tool }));
-      //       },
-      //       onToolResult: (tool) => {
-      //         console.log('Gemini Live Session tool result:', tool);
-      //         ws.send(JSON.stringify({ type: 'tool_result', tool }));
-      //       },
-      //       onInputTranscription: (text) => {
-      //         ws.send(JSON.stringify({ type: 'input_transcription', text }));
-      //       },
-      //       onOutputTranscription: (text) => {
-      //         ws.send(JSON.stringify({ type: 'output_transcription', text }));
-      //       },
-      //       onTurnComplete: () => {
-      //         ws.send(JSON.stringify({ type: 'turn_complete' }));
-      //       },
-      //       onError: (error) => {
-      //         console.error('Gemini Live Session error:', error);
-      //         ws.send(JSON.stringify({ type: 'error', message: error.message }));
-      //       },
-      //       onClose: (code, reason) => {
-      //         console.log('Gemini session closed unexpectedly, notifying client', code, reason);
-      //         ws.send(JSON.stringify({
-      //           type: 'session_closed',
-      //           code,
-      //           reason: reason || 'Gemini session closed'
-      //         }));
-      //       },
-      //     });
-      //     ws.data.session = session;
-      //     ws.send(JSON.stringify({ type: 'websocket_connected' }));
-      //     console.log('Gemini Live Session initialized (WebSocket ready)');
-      //   } catch (error) {
-      //     console.error('Failed to initialize Gemini Live Session:', error);
-      //     ws.close(1011, 'Internal Server Error: Failed to initialize session');
-      //   }
-      // }
+      if (ws.data.isGeminiLive) {
+        try {
+          console.log('Initializing Gemini Live Session...');
+          const session = new GeminiLiveSession({
+            onAudio: (chunk) => {
+              ws.send(chunk);
+            },
+            onInterruption: (event) => {
+              console.log('Gemini Live Session interruption:', event);
+              ws.send(JSON.stringify({ type: 'interruption', event }));
+            },
+            onToolCall: (tool) => {
+              console.log('Gemini Live Session tool call:', tool);
+              ws.send(JSON.stringify({ type: 'tool_call', tool }));
+            },
+            onToolResult: (tool) => {
+              console.log('Gemini Live Session tool result:', tool);
+              ws.send(JSON.stringify({ type: 'tool_result', tool }));
+            },
+            onInputTranscription: (text) => {
+              ws.send(JSON.stringify({ type: 'input_transcription', text }));
+            },
+            onOutputTranscription: (text) => {
+              ws.send(JSON.stringify({ type: 'output_transcription', text }));
+            },
+            onTurnComplete: () => {
+              ws.send(JSON.stringify({ type: 'turn_complete' }));
+            },
+            onError: (error) => {
+              console.error('Gemini Live Session error:', error);
+              ws.send(JSON.stringify({ type: 'error', message: error.message }));
+            },
+            onClose: (code, reason) => {
+              console.log('Gemini session closed unexpectedly, notifying client', code, reason);
+              ws.send(JSON.stringify({
+                type: 'session_closed',
+                code,
+                reason: reason || 'Gemini session closed'
+              }));
+            },
+          });
+          ws.data.session = session;
+          ws.send(JSON.stringify({ type: 'websocket_connected' }));
+          console.log('Gemini Live Session initialized (WebSocket ready)');
+        } catch (error) {
+          console.error('Failed to initialize Gemini Live Session:', error);
+          ws.close(1011, 'Internal Server Error: Failed to initialize session');
+        }
+      }
 
 
       // NEW - Realtime handler
@@ -132,6 +107,7 @@ const server = serve({
         console.log('Initializing Realtime Agent...');
         const agent = new WebsocketAgent({
           onMessage: (message) => {
+            console.log('Realtime Agent message:', message);
             ws.send(JSON.stringify(message));
           },
           onError: (error) => {
@@ -144,28 +120,6 @@ const server = serve({
       }
     },
     async message(ws, message) {
-      if (ws.data.isRealtime && ws.data.agent) {
-        if (message instanceof Buffer || message instanceof Uint8Array) {
-          await ws.data.agent.sendAudioChunk(message as Buffer);
-        } else if (typeof message === 'string') {
-          try {
-            const data = JSON.parse(message);
-            if (data.type === 'text') {
-              await ws.data.agent.sendText(data.content);
-            } else if (data.type === 'start') {
-              await ws.data.agent.connect();
-              console.log('Realtime agent connected via start signal');
-            } else if (data.type === 'stop') {
-              await ws.data.agent.disconnect();
-              console.log('Realtime agent disconnected via stop signal');
-            }
-          } catch (e) {
-            // ignore
-          }
-        }
-        return;
-      }
-
       // NEW - Gemini Live handler
       if (ws.data.isGeminiLive && ws.data.session) {
         if (message instanceof Buffer || message instanceof Uint8Array) {
@@ -203,12 +157,6 @@ const server = serve({
       }
     },
     async close(ws) {
-      if (ws.data.isRealtime && ws.data.agent) {
-        await ws.data.agent.disconnect();
-        console.log('Realtime agent disconnected');
-        return;
-      }
-
       // NEW - Gemini Live cleanup
       if (ws.data.isGeminiLive && ws.data.session) {
         await ws.data.session.disconnect();
