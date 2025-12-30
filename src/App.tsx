@@ -1,10 +1,9 @@
 import { useState } from "react";
 import ChatBot from "./components/chat";
 import { GeminiLiveInterface } from "./components/gemini-live-session";
-import { SpeechEcho } from "./components/speech-echo";
 import "./index.css";
 
-type Mode = 'chat' | 'mastra-voice' | 'gemini-native-voice' | 'speech-echo';
+type Mode = 'chat' | 'mastra-voice' | 'gemini-native-voice';
 
 export function App() {
   const [mode, setMode] = useState<Mode>('gemini-native-voice');
@@ -40,15 +39,6 @@ export function App() {
         >
           Gemini Native Voice
         </button>
-        <button
-          onClick={() => setMode('speech-echo')}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${mode === 'speech-echo'
-            ? 'bg-indigo-600 text-white'
-            : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-            }`}
-        >
-          Speech Echo
-        </button>
       </div>
 
       {/* Render based on mode */}
@@ -63,11 +53,6 @@ export function App() {
         </div>
       )}
       {mode === 'gemini-native-voice' && <GeminiLiveInterface />}
-      {mode === 'speech-echo' && (
-        <div className="flex h-screen w-full items-center justify-center bg-black">
-          <SpeechEcho />
-        </div>
-      )}
     </>
   );
 }

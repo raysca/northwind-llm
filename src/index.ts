@@ -1,6 +1,5 @@
 import { serve } from "bun";
 import index from "./index.html";
-import * as vercelRoutes from "./frameworks/vercel/route";
 import { GeminiLiveAgent } from "./frameworks/mastra/agents/gemini-live";
 import { GeminiLiveSession } from "./frameworks/gemini-native";
 import { WebsocketAgent } from "./frameworks/realtime/agent";
@@ -9,8 +8,6 @@ const server = serve({
   routes: {
     // Serve index.html for all unmatched routes.
     "/*": index,
-
-    "/api/vercel": vercelRoutes,
 
     "/api/realtime": (req, server) => {
       if (server.upgrade(req, { data: { isWebsocketAgent: true } })) {
