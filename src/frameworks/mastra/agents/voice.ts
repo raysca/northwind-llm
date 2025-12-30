@@ -8,8 +8,8 @@ import { listOrdersTool, getOrdersByCustomerIdTool, countOrdersTool, getTotalSal
 interface GeminiLiveAgentParams {
     onAudio?: (chunk: Buffer) => void;
     onText?: (text: string) => void;
+    onError?: (error: Error) => void;
 }
-
 const instructions = `
   You are a helpful assistant. You can use the tools below to answer the user's questions regarding products and orders.
 
@@ -58,9 +58,11 @@ export class GeminiLiveAgent {
         this.agent = this.createAgent();
         this.registerAgentEvents();
     }
+    // ... (createAgent method omitted, assuming it stays mostly same but we need to see if we attach error listener there or in events)
 
     private createAgent() {
         return new Agent({
+            // ... existing config
             model: GEMINI_LIVE_AGENT_MODEL,
             instructions,
             name: "Gemini Live Agent",
@@ -107,6 +109,11 @@ export class GeminiLiveAgent {
             console.log("Gemini Live Agent is writing", data);
         });
 
+        this.agent.voice?.on("error", (error) => {
+            console.error("Gemini Live Agent error:", error);
+            this.params.onError?.(error instanceof Error ? error : new Error(String(error)));
+        });
+
     }
 
     public async connect() {
@@ -122,6 +129,7 @@ export class GeminiLiveAgent {
         } catch (error) {
             this.#connected = false;
             console.error("Failed to connect to Gemini Live Agent", error);
+            this.params.onError?.(error instanceof Error ? error : new Error(String(error)));
             throw error;
         }
     }
@@ -138,7 +146,8 @@ export class GeminiLiveAgent {
         } catch (error) {
             this.#connected = false;
             console.error("Failed to disconnect from Gemini Live Agent", error);
-            throw error;
+            // We generally don't want to throw on disconnect cleanup, but reporting it is good
+            this.params.onError?.(error instanceof Error ? error : new Error(String(error)));
         }
     }
 

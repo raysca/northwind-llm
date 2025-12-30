@@ -6,12 +6,13 @@ export type RealtimeStatus = 'idle' | 'connecting' | 'connected' | 'disconnected
 
 export const useRealtime = (endpoint = '/api/realtime') => {
     const [status, setStatus] = useState<RealtimeStatus>('idle');
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [isMuted, setIsMuted] = useState(false);
     const audioContextRef = useRef<AudioContext | null>(null);
     const streamRef = useRef<MediaStream | null>(null);
     const workletNodeRef = useRef<AudioWorkletNode | null>(null);
     const wsRef = useRef<WebSocket | null>(null);
-    const { queueAudio, reset: resetPlayer, initAudioContext: initPlayerContext } = useAudioPlayer();
+    const { queueAudio, reset: resetPlayer, initAudioContext: initPlayerContext, isPlaying } = useAudioPlayer();
 
     // Store queueAudio in a ref to avoid recreating WebSocket on every render
     const queueAudioRef = useRef(queueAudio);
@@ -43,6 +44,7 @@ export const useRealtime = (endpoint = '/api/realtime') => {
         ws.onerror = (e) => {
             console.error('WebSocket error:', e);
             setStatus('error');
+            setErrorMessage('Connection failed. Please check your network and try again.');
         };
 
         ws.onmessage = async (event) => {
@@ -56,8 +58,9 @@ export const useRealtime = (endpoint = '/api/realtime') => {
                 try {
                     const msg = JSON.parse(data);
                     console.log('Received message:', msg);
-                    if (msg.type === 'text') {
-                        // Handle text (maybe expose it via a callback or state in future)
+                    if (msg.type === 'error') {
+                        setStatus('error');
+                        setErrorMessage(msg.message || 'An unknown error occurred.');
                     }
                 } catch (e) {
                     // Might be mixed text/binary, ignore if not JSON
@@ -95,6 +98,7 @@ export const useRealtime = (endpoint = '/api/realtime') => {
             }
 
             setStatus('connecting');
+            setErrorMessage(null); // Clear previous errors
 
             // Send start signal to backend to connect agent
             wsRef.current.send(JSON.stringify({ type: 'start' }));
@@ -144,6 +148,7 @@ export const useRealtime = (endpoint = '/api/realtime') => {
         } catch (error) {
             console.error('Connection failed:', error);
             setStatus('error');
+            setErrorMessage((error as Error).message || 'Failed to access microphone.');
             cleanupAudio();
         }
     }, [initPlayerContext, isMuted, cleanupAudio]);
@@ -170,6 +175,13 @@ export const useRealtime = (endpoint = '/api/realtime') => {
         setIsMuted(prev => !prev);
     }, []);
 
+    const clearError = useCallback(() => {
+        setErrorMessage(null);
+        if (status === 'error') {
+            setStatus('idle'); // Allow retrying
+        }
+    }, [status]);
+
     useEffect(() => {
         return () => {
             cleanupAudio();
@@ -182,6 +194,9 @@ export const useRealtime = (endpoint = '/api/realtime') => {
         disconnect,
         isMuted,
         toggleMute,
-        visualizerData
+        visualizerData,
+        isPlaying,
+        errorMessage,
+        clearError
     };
 };
