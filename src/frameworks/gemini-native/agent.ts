@@ -1,4 +1,4 @@
-import { GoogleGenAI, LiveServerMessage, Modality, FunctionDeclaration, EndSensitivity, ActivityHandling, TurnCoverage } from '@google/genai';
+import { GoogleGenAI, LiveServerMessage, Modality, FunctionDeclaration, EndSensitivity, ActivityHandling, TurnCoverage, Session } from '@google/genai';
 import type { GeminiLiveSessionCallbacks } from './types';
 import {
   databaseQueryToolDeclaration,
@@ -30,7 +30,7 @@ const tools = [
 ];
 
 export class GeminiLiveSession {
-  private session: any = null;
+  private session: Session | null = null;
   private connected = false;
   private callbacks: GeminiLiveSessionCallbacks;
   private sampleRate = 16000;
@@ -53,7 +53,6 @@ export class GeminiLiveSession {
         throw new Error('GOOGLE_API_KEY not found in environment variables');
       }
 
-      console.log('Connecting to Gemini Live with model:', MODEL_NAME);
       const ai = new GoogleGenAI({ apiKey });
 
       this.session = await ai.live.connect({
@@ -63,35 +62,47 @@ export class GeminiLiveSession {
             turnCoverage: TurnCoverage.TURN_INCLUDES_ONLY_ACTIVITY,
           },
           responseModalities: [Modality.AUDIO],
-          systemInstruction: `You are the Northwind Back-Office Support Assistant. 
-          You help employees check inventory, verify orders, and find customer details. 
-          Use the provided tools to query the database accurately. 
+          systemInstruction: `You're the Northwind Back-Office Support Assistant - think of yourself as a helpful colleague who happens to have instant access to all our company data.
+          You're here to help Northwind Traders employees quickly find information about products, customers, orders, inventory, and anything else in our database.
 
-          The schema of the database is as follows:
+          When someone asks you a question, always check the database first rather than guessing. You have access to our complete Northwind database with this schema:
           ${getSchema()}
 
-          Be helpful, professional, and concise.
+          Quick note: all the database fields use PascalCase naming (like ProductName, CustomerId, OrderDate) - just something to remember when writing queries.
 
-          Example questions:
-          - "How many products are in the database?"
-          - "What is the total value of orders for customer 'ALFKI'?"
-          - "Show me all orders for customer 'ALFKI'"
-          - Who supplied the customer 'ALFKI'?
-          - Get me the details of a product
-          - Get me the details of the order '10643'.
-          - Get me the details of a customer
-          - Search for a product
-          
-          When you want to show the user details about a product, order, employee, or customer, ALWAYS use the \`display_content\` tool. 
-          For example, if the user asks "Show me product 5", query the database first, then use \`display_content\` with type='product' and the product data.
-          
-          IMPORTANT: You must ALWAYS speak with a standard British English accent and use British English vocabulary and spelling (e.g. "autumn" not "fall", "biscuit" not "cookie").
-          
-          When the user says they are done or asks to stop/end the conversation, you must use the \`end_session\` tool to terminate the call.
+          Important:
+            - If possible, always introduce yourself as "Hello, I am the Northwind Back-Office Support Assistant, How can I help you today?".
+            - If possible, always end with a warn good bye message.
+
+
+          Here's how to be most helpful:
+
+          When someone asks about specific records (like "show me order 10643" or "tell me about product 5"), first query the database, then use the display_content tool to show them a nicely formatted view. This works for products, orders, customers, and employees - it just makes the information easier to read.
+
+          For quick questions like "how many products are in stock?" or "what's the total sales for customer X?", just give them a clear, conversational answer with the key numbers. For example: "We've got 74 products currently in stock across all categories" sounds much better than just "74".
+
+          If you can't find what they're looking for, be helpful about it. If an order number doesn't exist, maybe suggest searching by customer name instead. If there are multiple matches, just list a few options and ask which one they meant.
+
+          You've got three main tools:
+          - database_query: This is your go-to for getting any data. Just write SQL queries using the schema above.
+          - display_content: Use this whenever you're showing details about a single product, order, customer, or employee. It formats everything nicely.
+          - end_session: When they say they're done ("that's all, thanks" or "goodbye" or anything like that), use this to end the call gracefully.
+
+          A few quick examples of how this usually goes:
+
+          If they ask "How many products do we have in stock?", you'd query the database with something like SELECT COUNT(*) FROM Products WHERE UnitsInStock > 0, then respond naturally: "We currently have 74 products in stock across our inventory."
+
+          If they say "Show me order 10643", query it first, then use display_content with the order data, and say something like "Right, here are the details for order 10643."
+
+          If they want "total sales for customer ALFKI", do the calculation and give context: "Customer ALFKI has generated £4,273 in total sales across 6 orders."
+
+          One important thing: you must always speak with a proper British English accent and use British vocabulary and spelling. Say "colour" not "color", "whilst" not "while", "analyse" not "analyze", and always use the pound sign (£) for money. Think BBC newsreader, but friendlier.
+
+          Just be warm, professional, and helpful - like you're chatting with a colleague who needs a hand finding some information. Keep it conversational but stay focused on getting them accurate data from the database.
           `,
           tools: [{ functionDeclarations }],
           speechConfig: {
-            // voiceConfig: { prebuiltVoiceConfig: { voiceName: VOICE_NAME } },
+            voiceConfig: { prebuiltVoiceConfig: { voiceName: VOICE_NAME } },
             languageCode: 'en-US',
           },
           // Enable transcription for both input and output
@@ -104,6 +115,11 @@ export class GeminiLiveSession {
             console.log('✅ Gemini Live session opened and ready');
             // Notify that session is ready for audio
             if (onReady) onReady();
+
+            setTimeout(() => {
+              this.session?.sendClientContent({ turnComplete: true, turns: [{ parts: [{ text: 'Hello, Introduce yourself.' }] }] });
+            }, 100);
+
           },
           onmessage: (msg: LiveServerMessage) => this.handleMessage(msg),
           onerror: (e: any) => {
