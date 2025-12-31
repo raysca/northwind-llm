@@ -6,6 +6,7 @@ import { useAudioPlaybackLive } from './use-audio-playback-live';
 
 export function useGeminiLive(endpoint = '/api/gemini-live') {
   const [status, setStatus] = useState<SessionStatus>('idle');
+  const [isBackendConnected, setIsBackendConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Transcriptions
@@ -47,17 +48,20 @@ export function useGeminiLive(endpoint = '/api/gemini-live') {
 
     ws.onopen = () => {
       console.log('Gemini Live WebSocket connected');
+      setIsBackendConnected(true);
     };
 
     ws.onclose = () => {
       console.log('Gemini Live WebSocket disconnected');
       setStatus('disconnected');
+      setIsBackendConnected(false);
     };
 
     ws.onerror = (e) => {
       console.error('Gemini Live WebSocket error:', e);
       setError('Connection failed');
       setStatus('error');
+      setIsBackendConnected(false);
     };
 
     ws.onmessage = async (event) => {
@@ -298,8 +302,6 @@ export function useGeminiLive(endpoint = '/api/gemini-live') {
 
     setStatus('idle');
     setVisualizerData(new Uint8Array(0));
-    setStatus('idle');
-    setVisualizerData(new Uint8Array(0));
     setCurrentTool(null);
     setDisplayedContent(null);
     // Do NOT reset usageMetadata here so user can see final stats
@@ -323,6 +325,7 @@ export function useGeminiLive(endpoint = '/api/gemini-live') {
 
   return {
     status,
+    isBackendConnected,
     error,
     connect,
     disconnect,

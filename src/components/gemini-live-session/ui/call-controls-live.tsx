@@ -6,6 +6,7 @@ interface CallControlsLiveProps {
   onConnect: () => void;
   onDisconnect: () => void;
   error: string | null;
+  disabled?: boolean;
 }
 
 export function CallControlsLive({
@@ -13,6 +14,7 @@ export function CallControlsLive({
   onConnect,
   onDisconnect,
   error,
+  disabled = false,
 }: CallControlsLiveProps) {
   const isActive = status === 'connected' || status === 'connecting';
 
@@ -25,12 +27,11 @@ export function CallControlsLive({
       )}
       <button
         onClick={isActive ? onDisconnect : onConnect}
-        disabled={status === 'connecting'}
-        className={`flex items-center justify-center space-x-2 px-6 py-3 rounded-full font-bold transition-all transform hover:scale-105 active:scale-95 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed ${
-          isActive
-            ? 'bg-red-600 hover:bg-red-700 text-white'
-            : 'bg-emerald-600 hover:bg-emerald-700 text-white'
-        }`}
+        disabled={status === 'connecting' || disabled}
+        className={`flex items-center justify-center space-x-2 px-6 py-3 rounded-full font-bold transition-all transform hover:scale-105 active:scale-95 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed ${isActive
+          ? 'bg-red-600 hover:bg-red-700 text-white'
+          : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+          }`}
       >
         {isActive ? (
           <>
