@@ -7,12 +7,13 @@
 
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { RealTimeChat } from "./RealTimeChat";
+import { GeminiLiveInterface } from "./components/gemini-live-session";
+import "./index.css";
 
 const elem = document.getElementById("root")!;
 const app = (
   <StrictMode>
-    <RealTimeChat />
+    <GeminiLiveInterface />
   </StrictMode>
 );
 

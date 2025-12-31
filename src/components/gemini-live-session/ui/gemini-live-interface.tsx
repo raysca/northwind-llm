@@ -34,7 +34,7 @@ export function GeminiLiveInterface() {
             <Phone className="w-4 h-4 text-white" />
           </div>
           <div>
-            <h1 className="text-sm font-bold tracking-tight">Support Agent</h1>
+            <h1 className="text-sm font-bold tracking-tight">Northwind Support Agent</h1>
             <p className="text-[10px] text-slate-400 uppercase tracking-widest font-semibold leading-none">
               Live Voice
             </p>

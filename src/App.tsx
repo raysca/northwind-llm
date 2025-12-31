@@ -1,44 +1,10 @@
-import { useState } from "react";
-import ChatBot from "./components/chat";
 import { GeminiLiveInterface } from "./components/gemini-live-session";
 import "./index.css";
 
-type Mode = 'chat' | 'gemini-native-voice';
-
 export function App() {
-  const [mode, setMode] = useState<Mode>('gemini-native-voice');
-
   return (
     <>
-      {/* Mode Toggle */}
-      <div className="fixed top-4 right-4 z-50 flex gap-2 bg-slate-900 border border-slate-700 rounded-lg p-2 shadow-lg">
-        <button
-          onClick={() => setMode('chat')}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${mode === 'chat'
-            ? 'bg-indigo-600 text-white'
-            : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-            }`}
-        >
-          Chat
-        </button>
-        <button
-          onClick={() => setMode('gemini-native-voice')}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${mode === 'gemini-native-voice'
-            ? 'bg-indigo-600 text-white'
-            : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-            }`}
-        >
-          Gemini Native Voice
-        </button>
-      </div>
-
-      {/* Render based on mode */}
-      {mode === 'chat' && (
-        <div className="container mx-auto p-8 text-center relative z-10">
-          <ChatBot />
-        </div>
-      )}
-      {mode === 'gemini-native-voice' && <GeminiLiveInterface />}
+      <GeminiLiveInterface />
     </>
   );
 }
