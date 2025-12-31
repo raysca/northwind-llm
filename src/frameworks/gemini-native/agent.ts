@@ -215,6 +215,21 @@ export class GeminiLiveSession {
         this.callbacks.onAudio(audioBuffer);
       }
 
+
+
+      // Usage Metadata (Prompt/Response Tokens)
+      // Check turnComplete first as it often contains the final usage for the turn
+      if (msg.usageMetadata) {
+        // Map to our internal UsageMetadata type, handling potential nulls/undefineds from the API
+        const usageCallbackData = {
+          promptTokens: msg.usageMetadata.promptTokenCount ?? 0,
+          candidatesTokens: msg.usageMetadata.promptTokenCount ?? 0,
+          totalTokens: msg.usageMetadata.totalTokenCount ?? 0,
+        };
+        console.log('Usage Metadata:', msg.usageMetadata);
+        this.callbacks.onUsage?.(usageCallbackData);
+      }
+
       // Text response
       // if (msg.serverContent?.modelTurn?.parts?.[0]?.text) {
       //   console.log('Model turn text:', msg.serverContent.modelTurn?.parts?.[0]?.text);

@@ -22,6 +22,13 @@ export function useGeminiLive(endpoint = '/api/gemini-live') {
   // Displayed content state
   const [displayedContent, setDisplayedContent] = useState<any | null>(null);
 
+  // Usage Metadata state
+  const [usageMetadata, setUsageMetadata] = useState<{
+    promptTokens: number;
+    candidatesTokens: number;
+    totalTokens: number;
+  } | null>(null);
+
   // Refs
   const wsRef = useRef<WebSocket | null>(null);
   const audioCapture = useAudioCapture();
@@ -165,6 +172,30 @@ export function useGeminiLive(endpoint = '/api/gemini-live') {
           // setCurrentOutput((prev) => prev + ' [interrupted]');
           break;
 
+        case 'usage':
+          console.log('Received usage metadata:', msg.usage);
+          // Only update if current usage is greater than previous or if it's the first update
+          setUsageMetadata(prev => {
+            if (!prev) return msg.usage;
+            // If we want cumulative in session, we might sum them, but typically API returns accumulated or per-turn.
+            // Usually Gemini API returns usage for the *current request* response stream. 
+            // Logic: If onUsage is called at end of turn, it's that turn's usage.
+            // If we want session total, we should accumulate.
+            // BUT, the API (msg.serverContent.turnComplete.usageMetadata) returns `totalTokenCount` which implies total for session or large context window?
+            // Actually, `totalTokenCount` usually means prompt + candidates.
+            // Let's assume we want to accumulate for the session "feel" if the API returns per-turn, 
+            // but if `usageMetadata` comes from `turnComplete`, it is for that turn.
+            // We'll accumulate them manually for a session total if needed, or just display "Latest Turn" metrics.
+            // The User Request is "implement and display usage metadata".
+            // Let's accumulate them for a "Session Total" view.
+            return {
+              promptTokens: (prev.promptTokens || 0) + (msg.usage.promptTokens || 0),
+              candidatesTokens: (prev.candidatesTokens || 0) + (msg.usage.candidatesTokens || 0),
+              totalTokens: (prev.totalTokens || 0) + (msg.usage.totalTokens || 0),
+            };
+          });
+          break;
+
         case 'error':
           console.error('Backend error:', msg.message);
           setError(msg.message);
@@ -222,6 +253,8 @@ export function useGeminiLive(endpoint = '/api/gemini-live') {
     try {
       setStatus('connecting');
       setError(null);
+      // Reset usage on new connection
+      setUsageMetadata(null);
 
       // Send start signal to backend
       // Backend will connect to Gemini and send 'ready' when it's safe to send audio
@@ -269,6 +302,8 @@ export function useGeminiLive(endpoint = '/api/gemini-live') {
     setVisualizerData(new Uint8Array(0));
     setCurrentTool(null);
     setDisplayedContent(null);
+    // Do NOT reset usageMetadata here so user can see final stats
+    // setUsageMetadata(null); 
 
     console.log('Gemini Live session stopped');
   }, [audioCapture, stopPlayback]);
@@ -297,5 +332,6 @@ export function useGeminiLive(endpoint = '/api/gemini-live') {
     visualizerData,
     currentTool,
     displayedContent,
+    usageMetadata,
   };
 }

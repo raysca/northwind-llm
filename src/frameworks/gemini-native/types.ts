@@ -1,3 +1,9 @@
+export interface UsageMetadata {
+  promptTokens: number;
+  candidatesTokens: number;
+  totalTokens: number;
+}
+
 export interface GeminiLiveSessionCallbacks {
   onAudio: (chunk: Buffer) => void;
   onInputTranscription: (text: string) => void;
@@ -8,6 +14,7 @@ export interface GeminiLiveSessionCallbacks {
   onInterruption?: (event: any) => void;
   onToolCall?: (tool: { name: string; args: any }) => void;
   onToolResult?: (tool: { name: string; result: any }) => void;
+  onUsage?: (usage: UsageMetadata) => void;
 }
 
 // Client -> Server messages
@@ -26,4 +33,6 @@ export type ServerMessage =
   | { type: 'output_transcription'; text: string }
   | { type: 'turn_complete' }
   | { type: 'error'; message: string }
-  | { type: 'function_call'; name: string; args: any };
+  | { type: 'function_call'; name: string; args: any }
+  | { type: 'usage'; usage: UsageMetadata };
+

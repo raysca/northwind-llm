@@ -21,6 +21,7 @@ export function GeminiLiveInterface() {
     visualizerData,
     currentTool,
     displayedContent,
+    usageMetadata,
   } = useGeminiLive();
 
   const isActive = status === 'connected';
@@ -139,6 +140,13 @@ export function GeminiLiveInterface() {
           <div className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-green-500 animate-pulse' : 'bg-slate-700'}`} />
           <span>{isActive ? 'LIVE' : 'OFFLINE'}</span>
         </div>
+        {usageMetadata && (
+          <div className="flex space-x-4">
+            <span>In: {usageMetadata.promptTokens}</span>
+            <span>Out: {usageMetadata.candidatesTokens}</span>
+            <span>Total: {usageMetadata.totalTokens}</span>
+          </div>
+        )}
         <div>v1.0</div>
       </footer>
     </div>

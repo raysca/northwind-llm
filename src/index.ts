@@ -79,6 +79,10 @@ const server = serve({
             onTurnComplete: () => {
               ws.send(JSON.stringify({ type: 'turn_complete' }));
             },
+            onUsage: (usage) => {
+              console.log('Gemini Live Session usage:', usage);
+              ws.send(JSON.stringify({ type: 'usage', usage }));
+            },
             onError: (error) => {
               console.error('Gemini Live Session error:', error);
               ws.send(JSON.stringify({ type: 'error', message: error.message }));
