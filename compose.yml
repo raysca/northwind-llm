@@ -1,0 +1,12 @@
+services:
+  app:
+    image: northwind
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./databases:/usr/src/app/databases
+    # environment:
+    #   - NODE_ENV=production
+    env_file:
+      - .env

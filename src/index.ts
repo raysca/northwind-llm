@@ -8,6 +8,10 @@ const server = serve({
     // Serve index.html for all unmatched routes.
     "/*": index,
 
+    "/health": () => {
+      return new Response("OK");
+    },
+
     "/api/realtime": (req, server) => {
       if (server.upgrade(req, { data: { isWebsocketAgent: true } })) {
         return undefined;
@@ -168,7 +172,8 @@ const server = serve({
       }
 
     },
-  }
+  },
+  port: process.env.PORT || 3000,
 });
 
 console.log(`🚀 Server running at ${server.url}`);
