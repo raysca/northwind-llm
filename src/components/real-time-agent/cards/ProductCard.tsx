@@ -10,7 +10,7 @@ export const ProductCard = ({ product }: ProductCardProps) => {
     const isDiscontinued = product.Discontinued === 1 || product.Discontinued === true;
 
     return (
-        <div className="bg-card text-card-foreground rounded-lg border shadow-sm w-full max-w-sm overflow-hidden hover:shadow-md transition-shadow">
+        <div className="bg-card text-card-foreground rounded-lg border shadow-sm w-72 sm:w-80 overflow-hidden hover:shadow-md transition-shadow">
             <div className="p-4 space-y-3">
                 {/* Header */}
                 <div className="flex items-start justify-between gap-2">

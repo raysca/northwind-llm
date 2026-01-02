@@ -8,7 +8,7 @@ interface EmployeeCardProps {
 
 export const EmployeeCard = ({ employee }: EmployeeCardProps) => {
     return (
-        <div className="bg-card text-card-foreground rounded-lg border shadow-sm w-full max-w-sm overflow-hidden hover:shadow-md transition-shadow">
+        <div className="bg-card text-card-foreground rounded-lg border shadow-sm w-72 sm:w-80 overflow-hidden hover:shadow-md transition-shadow">
             <div className="p-4 space-y-4">
                 {/* Header with Avatar Placeholder */}
                 <div className="flex items-center gap-3">

@@ -1,10 +1,11 @@
-import { useRef, useEffect } from 'react';
-import { Mic, Sparkles } from 'lucide-react';
+import { useRef, useEffect, useState } from 'react';
+import { Mic, Sparkles, Wifi, WifiOff } from 'lucide-react';
 import { AudioVisualizerLive } from './audio-visualizer-live';
 import { CallControlsLive } from './call-controls-live';
+import { CallSummaryPopup } from './call-summary-popup';
+import { WelcomePopup } from './welcome-popup';
 import { useGeminiLive } from '../hooks/use-gemini-live';
 import { GeminiMessageItem } from './gemini-message';
-import { Message, MessageContent } from '@/components/ai-elements/message';
 import { cn } from '@/lib/utils';
 
 export function GeminiLiveInterface() {
@@ -24,6 +25,11 @@ export function GeminiLiveInterface() {
   const isActive = status === 'connected';
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Call summary popup state
+  const [showCallSummary, setShowCallSummary] = useState(false);
+  // Welcome popup state
+  const [showWelcome, setShowWelcome] = useState(true);
+
   // Auto-scroll to bottom of chat
   useEffect(() => {
     if (scrollRef.current) {
@@ -32,119 +38,159 @@ export function GeminiLiveInterface() {
   }, [messages, currentInput, currentOutput]);
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-slate-950 text-slate-100 overflow-hidden font-sans">
-      {/* Header */}
-      <header className="flex-none flex items-center justify-between px-6 py-4 bg-slate-950/50 backdrop-blur-md border-b border-slate-800 z-10">
-        <div className="flex items-center space-x-3">
-          <div className="relative">
-            <div className={cn("absolute inset-0 bg-indigo-500 blur-lg opacity-20 rounded-full", isActive && "animate-pulse")} />
-            <div className="relative w-10 h-10 bg-gradient-to-br from-indigo-600 to-violet-700 rounded-xl flex items-center justify-center shadow-lg border border-indigo-500/20">
-              <Sparkles className="w-5 h-5 text-indigo-100" />
+    <div className="flex items-center justify-center min-h-dvh w-full bg-muted/30 p-2 sm:p-4">
+      {/* App Container with border */}
+      <div className="flex flex-col h-[calc(100dvh-1rem)] sm:h-[calc(100dvh-2rem)] w-full max-w-2xl bg-background rounded-xl sm:rounded-2xl border shadow-lg overflow-hidden">
+        {/* Header */}
+        <header className="flex-none flex items-center justify-between px-4 py-3 border-b bg-card">
+          <div className="flex items-center gap-3">
+            <div className={cn(
+              "w-10 h-10 bg-gradient-to-br from-indigo-500 to-violet-600 rounded-xl flex items-center justify-center shadow-md",
+              isActive && "ring-2 ring-indigo-400/50 ring-offset-2 ring-offset-background"
+            )}>
+              <Sparkles className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-base font-semibold text-foreground">Northwind Assistant</h1>
+              <div className="flex items-center gap-1.5">
+                {isBackendConnected ? (
+                  <Wifi className="w-3 h-3 text-emerald-600" />
+                ) : (
+                  <WifiOff className="w-3 h-3 text-destructive" />
+                )}
+                <span className={cn(
+                  "text-xs font-medium",
+                  isActive ? "text-emerald-600" :
+                    isBackendConnected ? "text-muted-foreground" : "text-destructive"
+                )}>
+                  {isActive ? 'Live' : isBackendConnected ? 'Ready' : 'Offline'}
+                </span>
+              </div>
             </div>
           </div>
-          <div>
-            <h1 className="text-base font-bold tracking-tight text-slate-100">Northwind Assistant</h1>
-            <div className="flex items-center space-x-2">
-              <span className={cn(
-                "w-1.5 h-1.5 rounded-full",
-                isActive ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse" :
-                  isBackendConnected ? "bg-blue-500" : "bg-red-500"
-              )} />
-              <p className="text-[11px] text-slate-400 uppercase tracking-wider font-medium">
-                {isActive ? 'Live Session' : isBackendConnected ? 'Ready' : 'Disconnected'}
+
+          {/* Token Usage Button */}
+          {usageMetadata && (
+            <button
+              onClick={() => setShowCallSummary(true)}
+              className="text-xs text-muted-foreground font-mono bg-muted px-2.5 py-1 rounded-md border hover:bg-muted/80 hover:border-border transition-colors"
+            >
+              {usageMetadata.promptTokens + usageMetadata.candidatesTokens} tokens
+            </button>
+          )}
+        </header>
+
+        {/* Chat Area */}
+        <div
+          ref={scrollRef}
+          className="flex-1 overflow-y-auto px-4 py-4 bg-background"
+        >
+          {/* Empty State */}
+          {messages.length === 0 && !currentInput && !currentOutput && (
+            <div className="h-full flex flex-col items-center justify-center text-center px-6">
+              <div className={cn(
+                "w-20 h-20 rounded-full flex items-center justify-center mb-4 border-2",
+                isActive
+                  ? "bg-emerald-50 border-emerald-200 text-emerald-600"
+                  : "bg-muted border-border text-muted-foreground"
+              )}>
+                <Mic className={cn("w-8 h-8", isActive && "animate-pulse")} />
+              </div>
+              <h2 className="text-lg font-semibold text-foreground mb-2">
+                {isActive ? 'Listening...' : 'Voice Assistant'}
+              </h2>
+              <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
+                {isActive
+                  ? 'Speak to ask about products, orders, customers, or employees'
+                  : 'Press the call button to start talking'}
               </p>
             </div>
-          </div>
-        </div>
+          )}
 
-        {/* Token Usage Stats - Hidden on small mobile */}
-        {usageMetadata && (
-          <div className="hidden sm:flex items-center space-x-4 text-[10px] text-slate-500 font-mono bg-slate-900/50 px-3 py-1.5 rounded-full border border-slate-800/50">
-            <div className="flex items-center space-x-1.5">
-              <span className="w-1 h-3 bg-blue-500/50 rounded-full" />
-              <span>IN: {usageMetadata.promptTokens}</span>
-            </div>
-            <div className="w-px h-3 bg-slate-800" />
-            <div className="flex items-center space-x-1.5">
-              <span className="w-1 h-3 bg-purple-500/50 rounded-full" />
-              <span>OUT: {usageMetadata.candidatesTokens}</span>
-            </div>
-          </div>
-        )}
-      </header>
-
-      {/* Main Content Area */}
-      <main className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
-
-        {/* Left Panel: Conversation & Visualizer */}
-        {/* We keep the visualizer and controls on the left/main area, but now the chat list handles all content types */}
-        <div className="flex-1 flex flex-col min-w-0 border-r border-slate-800/50 relative">
-
-          {/* Visualizer Area */}
-          <div className="flex-none h-48 sm:h-64 flex flex-col items-center justify-center relative bg-gradient-to-b from-slate-900/20 to-transparent">
-            <div className="w-full max-w-md px-8 py-4">
-              <AudioVisualizerLive data={visualizerData} isActive={isActive} />
-            </div>
-            {!isActive && (
-              <div className="absolute inset-0 flex items-center justify-center text-slate-600">
-                <p className="text-sm font-medium tracking-wide">
-                  {isBackendConnected ? 'Ready to connect' : 'Connecting to server...'}
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Chat Scroll Area - Unified Message Stream */}
-          <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-6 scroll-smooth" ref={scrollRef}>
-            {messages.length === 0 && !currentInput && !currentOutput && isActive && (
-              <div className="h-full flex flex-col items-center justify-center text-slate-600 opacity-60">
-                <Mic className="w-8 h-8 mb-2" />
-                <p className="text-sm">Listening...</p>
-              </div>
-            )}
-
+          {/* Messages */}
+          <div className="space-y-4 max-w-xl mx-auto">
             {messages.map((msg) => (
               <GeminiMessageItem key={msg.id} message={msg} />
             ))}
 
+            {/* Current Input (User Speaking) */}
             {currentInput && (
-              <Message from="user">
-                <MessageContent className="bg-indigo-600/50 text-white/90 border-indigo-500/30 animate-pulse">
-                  {currentInput}
-                </MessageContent>
-              </Message>
+              <div className="flex justify-end">
+                <div className="bg-primary text-primary-foreground rounded-2xl rounded-br-md px-4 py-2.5 max-w-[85%]">
+                  <p className="text-[15px] leading-relaxed">
+                    {currentInput}
+                    <span className="inline-block w-0.5 h-4 bg-current animate-pulse ml-1 align-middle" />
+                  </p>
+                </div>
+              </div>
             )}
 
+            {/* Current Output (AI Speaking) */}
             {currentOutput && (
-              <Message from="assistant">
-                <MessageContent className="bg-slate-800/50 border-slate-700/30 animate-pulse">
-                  {currentOutput}
-                </MessageContent>
-              </Message>
+              <div className="flex justify-start">
+                <div className="bg-secondary text-secondary-foreground rounded-2xl rounded-bl-md px-4 py-2.5 max-w-[85%] border">
+                  <p className="text-[15px] leading-relaxed">
+                    {currentOutput}
+                    <span className="inline-block w-0.5 h-4 bg-current/50 animate-pulse ml-1 align-middle" />
+                  </p>
+                </div>
+              </div>
             )}
-
-            {/* Bottom Spacer */}
-            <div className="h-4" />
           </div>
 
-          {/* Floating Controls Overlay (Desktop: Bottom Center, Mobile: Fixed Bottom) */}
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20">
+          {/* Bottom Spacer */}
+          <div className="h-24" />
+        </div>
+
+        {/* Bottom Call Bar */}
+        <div className="flex-none border-t bg-card">
+          {/* Error Message */}
+          {error && (
+            <div className="px-4 pt-3">
+              <div className="bg-destructive/10 text-destructive text-sm px-3 py-2 rounded-lg border border-destructive/20">
+                {error}
+              </div>
+            </div>
+          )}
+
+          <div className="px-4 py-3 flex items-center gap-3">
+            {/* Visualizer */}
+            <div className="flex-1 h-12">
+              {isActive ? (
+                <AudioVisualizerLive data={visualizerData} isActive={isActive} />
+              ) : (
+                <div className="h-full rounded-xl bg-muted flex items-center justify-center border">
+                  <span className="text-xs text-muted-foreground">
+                    {isBackendConnected ? 'Press to start' : 'Connecting...'}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Call Button */}
             <CallControlsLive
               status={status}
               onConnect={connect}
               onDisconnect={disconnect}
-              error={error}
+              error={null}
               disabled={!isBackendConnected}
             />
           </div>
         </div>
+      </div>
 
-        {/* Right Panel: Removed effectively, or we could keep it for debugging/context if needed, 
-            but for now the request implies a unified view. 
-            I will hide it since everything is now in the message stream. 
-        */}
-      </main>
+      {/* Call Summary Popup */}
+      <CallSummaryPopup
+        usageMetadata={usageMetadata}
+        isOpen={showCallSummary}
+        onDismiss={() => setShowCallSummary(false)}
+      />
+
+      {/* Welcome Popup */}
+      <WelcomePopup
+        isOpen={showWelcome}
+        onDismiss={() => setShowWelcome(false)}
+      />
     </div>
   );
 }
-

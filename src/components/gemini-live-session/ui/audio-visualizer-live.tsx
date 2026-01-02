@@ -1,3 +1,5 @@
+import { cn } from '@/lib/utils';
+
 interface AudioVisualizerLiveProps {
   data: Uint8Array;
   isActive: boolean;
@@ -6,23 +8,27 @@ interface AudioVisualizerLiveProps {
 export function AudioVisualizerLive({ data, isActive }: AudioVisualizerLiveProps) {
   if (!isActive) return null;
 
-  // Use actual frequency data or fallback to animated bars
-  const barCount = 24;
+  // Fewer bars for a cleaner look
+  const barCount = 16;
   const bars = Array.from({ length: barCount }, (_, i) => {
-    const value = data.length > 0 ? data[i % data.length] : Math.random() * 255;
-    const heightPercent = (value / 255) * 80 + 20; // 20-100%
-    return heightPercent;
+    const value = data.length > 0 ? data[Math.floor((i / barCount) * data.length)] : 0;
+    // Map to 15-100% height
+    const baseHeight = data.length > 0 ? (value / 255) * 85 + 15 : 15;
+    return baseHeight;
   });
 
   return (
-    <div className="h-full min-h-[60px] w-full bg-slate-900/80 border border-slate-800 rounded-xl flex items-center justify-center space-x-1 px-4">
+    <div className="h-full w-full bg-muted rounded-xl flex items-center justify-center gap-[3px] px-3 border">
       {bars.map((height, i) => (
         <div
           key={i}
-          className="w-1 bg-indigo-500 rounded-full transition-all duration-100"
+          className={cn(
+            "w-1 rounded-full transition-all duration-75 ease-out",
+            "bg-gradient-to-t from-indigo-500 to-violet-400"
+          )}
           style={{
             height: `${height}%`,
-            opacity: 0.5 + (height / 200),
+            opacity: 0.6 + (height / 250),
           }}
         />
       ))}

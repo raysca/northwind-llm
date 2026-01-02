@@ -1,5 +1,9 @@
 @import "../styles/globals.css";
 
+#root {
+  @apply min-h-screen bg-background w-full;
+}
+
 @layer base {
   :root {
     @apply font-sans;
