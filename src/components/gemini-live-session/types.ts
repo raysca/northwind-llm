@@ -1,7 +1,22 @@
-export interface TranscriptionEntry {
+export type GeminiMessageRole = 'user' | 'model' | 'tool';
+
+export interface ToolCallContent {
+  toolCallId: string;
+  name: string;
+  args: any;
+}
+
+export interface ToolResultContent {
+  toolCallId: string;
+  name: string;
+  result: any;
+}
+
+export interface GeminiMessage {
   id: string;
-  role: 'user' | 'model';
-  text: string;
+  role: GeminiMessageRole;
+  type: 'text' | 'tool_call' | 'tool_result';
+  content: string | ToolCallContent | ToolResultContent;
   timestamp: number;
 }
 

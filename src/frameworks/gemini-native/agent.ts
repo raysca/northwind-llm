@@ -1,4 +1,4 @@
-import { GoogleGenAI, LiveServerMessage, Modality, FunctionDeclaration, EndSensitivity, ActivityHandling, TurnCoverage, Session } from '@google/genai';
+import { GoogleGenAI, LiveServerMessage, Modality, FunctionDeclaration, ActivityHandling, TurnCoverage, Session } from '@google/genai';
 import type { GeminiLiveSessionCallbacks } from './types';
 import {
   databaseQueryToolDeclaration,
@@ -12,10 +12,14 @@ import {
   endSessionToolDeclaration,
   endSessionToolExecutor,
 } from './tools/termination-tool';
+
+// @ts-ignore
+import instructions from "./instructions.md" with { type: "text" };
+
 import { getSchema } from '@/db/client';
 
 const MODEL_NAME = process.env.GEMINI_LIVE_MODEL || 'gemini-2.5-flash-native-audio-preview-09-2025';
-const VOICE_NAME = process.env.GEMINI_LIVE_VOICE || 'Kore';
+const VOICE_NAME = process.env.GEMINI_LIVE_VOICE || 'Zephyr';
 
 // Function declarations for Gemini - simplified to match working old implementation
 const functionDeclarations: FunctionDeclaration[] = [
@@ -28,6 +32,8 @@ const functionDeclarations: FunctionDeclaration[] = [
 const tools = [
   databaseQueryToolExecutor,
 ];
+
+const systemInstruction = instructions.replace('{schema-goes-here}', getSchema());
 
 export class GeminiLiveSession {
   private session: Session | null = null;
@@ -60,46 +66,10 @@ export class GeminiLiveSession {
         config: {
           realtimeInputConfig: {
             turnCoverage: TurnCoverage.TURN_INCLUDES_ONLY_ACTIVITY,
+            activityHandling: ActivityHandling.START_OF_ACTIVITY_INTERRUPTS,
           },
           responseModalities: [Modality.AUDIO],
-          systemInstruction: `You're the Northwind Back-Office Support Assistant - think of yourself as a helpful colleague who happens to have instant access to all our company data.
-          You're here to help Northwind Traders employees quickly find information about products, customers, orders, inventory, and anything else in our database.
-
-          When someone asks you a question, always check the database first rather than guessing. You have access to our complete Northwind database with this schema:
-          ${getSchema()}
-
-          Quick note: all the database fields use PascalCase naming (like ProductName, CustomerId, OrderDate) - just something to remember when writing queries.
-
-          Important:
-            - If possible, always introduce yourself as "Hello, I am the Northwind Back-Office Support Assistant, How can I help you today?".
-            - If possible, always end with a warn good bye message.
-
-
-          Here's how to be most helpful:
-
-          When someone asks about specific records (like "show me order 10643" or "tell me about product 5"), first query the database, then use the display_content tool to show them a nicely formatted view. This works for products, orders, customers, and employees - it just makes the information easier to read.
-
-          For quick questions like "how many products are in stock?" or "what's the total sales for customer X?", just give them a clear, conversational answer with the key numbers. For example: "We've got 74 products currently in stock across all categories" sounds much better than just "74".
-
-          If you can't find what they're looking for, be helpful about it. If an order number doesn't exist, maybe suggest searching by customer name instead. If there are multiple matches, just list a few options and ask which one they meant.
-
-          You've got three main tools:
-          - database_query: This is your go-to for getting any data. Just write SQL queries using the schema above.
-          - display_content: Use this whenever you're showing details about a single product, order, customer, or employee. It formats everything nicely.
-          - end_session: When they say they're done ("that's all, thanks" or "goodbye" or anything like that), use this to end the call gracefully.
-
-          A few quick examples of how this usually goes:
-
-          If they ask "How many products do we have in stock?", you'd query the database with something like SELECT COUNT(*) FROM Products WHERE UnitsInStock > 0, then respond naturally: "We currently have 74 products in stock across our inventory."
-
-          If they say "Show me order 10643", query it first, then use display_content with the order data, and say something like "Right, here are the details for order 10643."
-
-          If they want "total sales for customer ALFKI", do the calculation and give context: "Customer ALFKI has generated £4,273 in total sales across 6 orders."
-
-          One important thing: you must always speak with a proper British English accent and use British vocabulary and spelling. Say "colour" not "color", "whilst" not "while", "analyse" not "analyze", and always use the pound sign (£) for money. Think BBC newsreader, but friendlier.
-
-          Just be warm, professional, and helpful - like you're chatting with a colleague who needs a hand finding some information. Keep it conversational but stay focused on getting them accurate data from the database.
-          `,
+          systemInstruction: systemInstruction,
           tools: [{ functionDeclarations }],
           speechConfig: {
             voiceConfig: { prebuiltVoiceConfig: { voiceName: VOICE_NAME } },
@@ -117,7 +87,7 @@ export class GeminiLiveSession {
             if (onReady) onReady();
 
             setTimeout(() => {
-              this.session?.sendClientContent({ turnComplete: true, turns: [{ parts: [{ text: 'Hello, Introduce yourself.' }] }] });
+              this.session?.sendClientContent({ turnComplete: true, turns: [{ parts: [{ text: 'Please introduce yourself briefly' }] }] });
             }, 100);
 
           },
@@ -177,7 +147,7 @@ export class GeminiLiveSession {
   async sendText(text: string) {
     if (this.connected && this.session) {
       try {
-        this.session.sendRealtimeInput({ text });
+        this.session?.sendClientContent({ turnComplete: true, turns: [{ parts: [{ text: text }] }] });
       } catch (error) {
         console.error('Failed to send text:', error);
       }
@@ -251,7 +221,7 @@ export class GeminiLiveSession {
       console.log('Function call:', fc.name, fc.args);
 
       // Notify client that a tool is being called
-      this.callbacks.onToolCall?.({ name: fc.name, args: fc.args });
+      this.callbacks.onToolCall?.({ id: fc.id, name: fc.name, args: fc.args });
 
       let result: any;
 
@@ -275,25 +245,29 @@ export class GeminiLiveSession {
         console.log('Function result:', result);
 
         // Notify client of tool result
-        this.callbacks.onToolResult?.({ name: fc.name, result });
+        this.callbacks.onToolResult?.({ id: fc.id, name: fc.name, result });
 
         // Send tool response back to Gemini
-        this.session.sendToolResponse({
-          functionResponses: [{
-            id: fc.id,
-            name: fc.name,
-            response: { result },
-          }],
-        });
+        if (this.session) {
+          this.session.sendToolResponse({
+            functionResponses: [{
+              id: fc.id,
+              name: fc.name,
+              response: { result },
+            }],
+          });
+        }
       } catch (error) {
         console.error(`Error executing function ${fc.name}:`, error);
-        this.session.sendToolResponse({
-          functionResponses: [{
-            id: fc.id,
-            name: fc.name,
-            response: { error: (error as Error).message },
-          }],
-        });
+        if (this.session) {
+          this.session.sendToolResponse({
+            functionResponses: [{
+              id: fc.id,
+              name: fc.name,
+              response: { error: (error as Error).message },
+            }],
+          });
+        }
       }
     }
   }

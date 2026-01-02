@@ -1,13 +1,9 @@
 import { useRef, useEffect } from 'react';
-import { Phone, Mic, Sparkles } from 'lucide-react';
+import { Mic, Sparkles } from 'lucide-react';
 import { AudioVisualizerLive } from './audio-visualizer-live';
 import { CallControlsLive } from './call-controls-live';
-import { ToolCallIndicator } from './tool-call-indicator';
 import { useGeminiLive } from '../hooks/use-gemini-live';
-import { ProductCard } from '@/components/real-time-agent/cards/ProductCard';
-import { OrderCard } from '@/components/real-time-agent/cards/OrderCard';
-import { EmployeeCard } from '@/components/real-time-agent/cards/EmployeeCard';
-import { CustomerCard } from '@/components/real-time-agent/cards/CustomerCard';
+import { GeminiMessageItem } from './gemini-message';
 import { Message, MessageContent } from '@/components/ai-elements/message';
 import { cn } from '@/lib/utils';
 
@@ -17,12 +13,10 @@ export function GeminiLiveInterface() {
     error,
     connect,
     disconnect,
-    transcriptions,
+    messages,
     currentInput,
     currentOutput,
     visualizerData,
-    currentTool,
-    displayedContent,
     usageMetadata,
     isBackendConnected,
   } = useGeminiLive();
@@ -35,7 +29,7 @@ export function GeminiLiveInterface() {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [transcriptions, currentInput, currentOutput]);
+  }, [messages, currentInput, currentOutput]);
 
   return (
     <div className="flex flex-col h-screen w-screen bg-slate-950 text-slate-100 overflow-hidden font-sans">
@@ -83,6 +77,7 @@ export function GeminiLiveInterface() {
       <main className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
 
         {/* Left Panel: Conversation & Visualizer */}
+        {/* We keep the visualizer and controls on the left/main area, but now the chat list handles all content types */}
         <div className="flex-1 flex flex-col min-w-0 border-r border-slate-800/50 relative">
 
           {/* Visualizer Area */}
@@ -99,24 +94,17 @@ export function GeminiLiveInterface() {
             )}
           </div>
 
-          {/* Chat Scroll Area */}
+          {/* Chat Scroll Area - Unified Message Stream */}
           <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-6 scroll-smooth" ref={scrollRef}>
-            {transcriptions.length === 0 && !currentInput && !currentOutput && isActive && (
+            {messages.length === 0 && !currentInput && !currentOutput && isActive && (
               <div className="h-full flex flex-col items-center justify-center text-slate-600 opacity-60">
                 <Mic className="w-8 h-8 mb-2" />
                 <p className="text-sm">Listening...</p>
               </div>
             )}
 
-            {transcriptions.map((entry) => (
-              <Message key={entry.id} from={entry.role === 'user' ? 'user' : 'assistant'}>
-                <MessageContent className={cn(
-                  "shadow-sm backdrop-blur-sm",
-                  entry.role === 'user' ? "bg-indigo-600/90 text-white border-indigo-500/50" : "bg-slate-800/80 border-slate-700/50"
-                )}>
-                  {entry.text}
-                </MessageContent>
-              </Message>
+            {messages.map((msg) => (
+              <GeminiMessageItem key={msg.id} message={msg} />
             ))}
 
             {currentInput && (
@@ -151,88 +139,10 @@ export function GeminiLiveInterface() {
           </div>
         </div>
 
-        {/* Right Panel: Data & Tools Display */}
-        {/* On mobile, this stacks below, but we might want it to be a toggle or different view if content is heavy. 
-            For now, following the plan: responsive split. Flex-col handles stacking. */}
-        <div className={cn(
-          "flex-1 md:max-w-md lg:max-w-lg bg-slate-900/30 border-t md:border-t-0 md:border-l border-slate-800 flex flex-col",
-          // Hide on mobile if no content to show, or maybe just show minimal?
-          !displayedContent && !currentTool ? "hidden md:flex" : "flex"
-        )}>
-          <div className="p-4 border-b border-slate-800/50 flex items-center justify-between">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500 flex items-center gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-              Context & Tools
-            </h2>
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {/* Active Tool Indicator */}
-            <div className="transition-all duration-300 ease-in-out">
-              <ToolCallIndicator tool={currentTool} />
-            </div>
-
-            {/* Displayed Content */}
-            {displayedContent && (
-              <div className="animate-in slide-in-from-right-4 fade-in duration-300">
-                {displayedContent.type === 'product' && displayedContent.product && (
-                  <ProductCard product={displayedContent.product} />
-                )}
-                {displayedContent.type === 'products' && displayedContent.products && (
-                  <div className="flex flex-col gap-3">
-                    {displayedContent.products.map((p: any) => (
-                      <ProductCard key={p.Id} product={p} />
-                    ))}
-                  </div>
-                )}
-                {displayedContent.type === 'order' && displayedContent.order && (
-                  <OrderCard order={displayedContent.order} />
-                )}
-                {displayedContent.type === 'orders' && displayedContent.orders && (
-                  <div className="flex flex-col gap-3">
-                    {displayedContent.orders.map((o: any) => (
-                      <OrderCard key={o.Id} order={o} />
-                    ))}
-                  </div>
-                )}
-                {displayedContent.type === 'employee' && displayedContent.employee && (
-                  <EmployeeCard employee={displayedContent.employee} />
-                )}
-                {displayedContent.type === 'employees' && displayedContent.employees && (
-                  <div className="flex flex-col gap-3">
-                    {displayedContent.employees.map((e: any) => (
-                      <EmployeeCard key={e.Id} employee={e} />
-                    ))}
-                  </div>
-                )}
-                {displayedContent.type === 'customer' && displayedContent.customer && (
-                  <CustomerCard customer={displayedContent.customer} />
-                )}
-                {displayedContent.type === 'customers' && displayedContent.customers && (
-                  <div className="flex flex-col gap-3">
-                    {displayedContent.customers.map((c: any) => (
-                      <CustomerCard key={c.Id} customer={c} />
-                    ))}
-                  </div>
-                )}
-                {displayedContent.type === 'text_response' && (
-                  <div className="p-4 bg-slate-800/80 border border-slate-700 rounded-xl text-sm leading-relaxed text-slate-300 shadow-sm">
-                    {displayedContent.content}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {!displayedContent && !currentTool && (
-              <div className="h-full flex flex-col items-center justify-center text-slate-700 space-y-2 p-8 text-center opacity-50">
-                <div className="w-12 h-12 rounded-xl bg-slate-800/50 border border-slate-800 flex items-center justify-center">
-                  <Sparkles className="w-5 h-5" />
-                </div>
-                <p className="text-xs font-medium uppercase tracking-wide">No active context</p>
-              </div>
-            )}
-          </div>
-        </div>
+        {/* Right Panel: Removed effectively, or we could keep it for debugging/context if needed, 
+            but for now the request implies a unified view. 
+            I will hide it since everything is now in the message stream. 
+        */}
       </main>
     </div>
   );

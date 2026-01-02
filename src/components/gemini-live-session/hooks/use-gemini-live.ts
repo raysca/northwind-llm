@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { nanoid } from 'nanoid';
-import { TranscriptionEntry, SessionStatus } from '../types';
+import { GeminiMessage, SessionStatus } from '../types';
 import { useAudioCapture } from './use-audio-capture';
 import { useAudioPlaybackLive } from './use-audio-playback-live';
 
@@ -9,19 +9,17 @@ export function useGeminiLive(endpoint = '/api/gemini-live') {
   const [isBackendConnected, setIsBackendConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Transcriptions
-  const [transcriptions, setTranscriptions] = useState<TranscriptionEntry[]>([]);
+  // Unified Messages
+  const [messages, setMessages] = useState<GeminiMessage[]>([]);
+
   const [currentInput, setCurrentInput] = useState('');
   const [currentOutput, setCurrentOutput] = useState('');
 
   // Audio visualization
   const [visualizerData, setVisualizerData] = useState<Uint8Array>(new Uint8Array(0));
 
-  // Tool execution state
-  const [currentTool, setCurrentTool] = useState<{ name: string; args: any } | null>(null);
-
-  // Displayed content state
-  const [displayedContent, setDisplayedContent] = useState<any | null>(null);
+  // Tool execution state - kept for active indicator if needed, but primary source is now messages
+  const [currentTool, setCurrentTool] = useState<{ id?: string; name: string; args: any } | null>(null);
 
   // Usage Metadata state
   const [usageMetadata, setUsageMetadata] = useState<{
@@ -99,7 +97,6 @@ export function useGeminiLive(endpoint = '/api/gemini-live') {
 
         case 'ready':
           console.log('✅ Gemini session ready, starting audio capture');
-          // Now it's safe to start capturing audio
           try {
             await audioCapture.startCapture((audioChunk: ArrayBuffer) => {
               if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -107,7 +104,6 @@ export function useGeminiLive(endpoint = '/api/gemini-live') {
               }
             });
             setStatus('connected');
-            // Start visualizer
             if (updateVisualizerRef.current) {
               updateVisualizerRef.current();
             }
@@ -128,44 +124,64 @@ export function useGeminiLive(endpoint = '/api/gemini-live') {
 
         case 'turn_complete':
           // Save current input/output to history
-          setTranscriptions((prev) => {
-            const newEntries: TranscriptionEntry[] = [];
+          setMessages((prev) => {
+            const newMessages: GeminiMessage[] = [];
 
             if (currentInput.trim()) {
-              newEntries.push({
+              newMessages.push({
                 id: nanoid(),
                 role: 'user',
-                text: currentInput,
+                type: 'text',
+                content: currentInput,
                 timestamp: Date.now(),
               });
             }
 
             if (currentOutput.trim()) {
-              newEntries.push({
+              newMessages.push({
                 id: nanoid(),
                 role: 'model',
-                text: currentOutput,
+                type: 'text',
+                content: currentOutput,
                 timestamp: Date.now(),
               });
             }
 
-            return [...prev, ...newEntries];
+            return [...prev, ...newMessages];
           });
           setCurrentInput('');
-          setCurrentOutput('');
           setCurrentOutput('');
           break;
 
         case 'tool_call':
+          const toolCallMsg: GeminiMessage = {
+            id: nanoid(), // Use msg.tool.id from backend if available, else nanoid
+            role: 'model', // Tool calls are initiated by the model
+            type: 'tool_call',
+            content: {
+              toolCallId: msg.tool.id,
+              name: msg.tool.name,
+              args: msg.tool.args,
+            },
+            timestamp: Date.now(),
+          };
+          setMessages(prev => [...prev, toolCallMsg]);
           setCurrentTool(msg.tool);
-          // Check for display_content tool call
-          if (msg.tool.name === 'display_content') {
-            console.log('Received display_content tool call:', msg.tool.args);
-            setDisplayedContent(msg.tool.args);
-          }
           break;
 
         case 'tool_result':
+          const toolResultMsg: GeminiMessage = {
+            id: nanoid(),
+            role: 'tool', // Result comes from tool
+            type: 'tool_result',
+            content: {
+              toolCallId: msg.tool.id,
+              name: msg.tool.name,
+              result: msg.tool.result,
+            },
+            timestamp: Date.now(),
+          };
+          setMessages(prev => [...prev, toolResultMsg]);
           setCurrentTool(null);
           break;
 
@@ -193,9 +209,9 @@ export function useGeminiLive(endpoint = '/api/gemini-live') {
             // The User Request is "implement and display usage metadata".
             // Let's accumulate them for a "Session Total" view.
             return {
-              promptTokens: (prev.promptTokens || 0) + (msg.usage.promptTokens || 0),
-              candidatesTokens: (prev.candidatesTokens || 0) + (msg.usage.candidatesTokens || 0),
-              totalTokens: (prev.totalTokens || 0) + (msg.usage.totalTokens || 0),
+              promptTokens: msg.usage.promptTokens || 0,
+              candidatesTokens: msg.usage.candidatesTokens || 0,
+              totalTokens: msg.usage.totalTokens || 0,
             };
           });
           break;
@@ -303,7 +319,6 @@ export function useGeminiLive(endpoint = '/api/gemini-live') {
     setStatus('idle');
     setVisualizerData(new Uint8Array(0));
     setCurrentTool(null);
-    setDisplayedContent(null);
     // Do NOT reset usageMetadata here so user can see final stats
     // setUsageMetadata(null); 
 
@@ -329,12 +344,13 @@ export function useGeminiLive(endpoint = '/api/gemini-live') {
     error,
     connect,
     disconnect,
-    transcriptions,
+    transcriptions: messages, // Alias to avoid breaking old usage immediately if any, but better to update call sites
+    messages,
     currentInput,
     currentOutput,
     visualizerData,
     currentTool,
-    displayedContent,
+    // displayedContent, // Removed as it is now part of messages stream
     usageMetadata,
   };
 }

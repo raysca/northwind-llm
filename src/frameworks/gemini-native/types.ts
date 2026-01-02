@@ -12,8 +12,8 @@ export interface GeminiLiveSessionCallbacks {
   onError: (error: Error) => void;
   onClose?: (code?: number, reason?: string) => void;
   onInterruption?: (event: any) => void;
-  onToolCall?: (tool: { name: string; args: any }) => void;
-  onToolResult?: (tool: { name: string; result: any }) => void;
+  onToolCall?: (tool: { id: string; name: string; args: any }) => void;
+  onToolResult?: (tool: { id: string; name: string; result: any }) => void;
   onUsage?: (usage: UsageMetadata) => void;
 }
 
