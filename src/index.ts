@@ -2,6 +2,7 @@ import { serve } from "bun";
 import index from "./index.html";
 import { GeminiLiveSession } from "./frameworks/gemini-native";
 import { WebsocketAgent } from "./frameworks/realtime/agent";
+import { TwilioStreamHandler } from "./frameworks/gemini-native/twilio/stream";
 
 const server = serve({
   routes: {
@@ -10,6 +11,27 @@ const server = serve({
 
     "/health": () => {
       return new Response("OK");
+    },
+
+    "/api/twilio-voice": async (req) => {
+      const url = new URL(req.url);
+      const host = url.host;
+      const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Connect>
+        <Stream url="wss://${host}/api/twilio-stream" />
+    </Connect>
+</Response>`;
+      return new Response(twiml, {
+        headers: { "Content-Type": "application/xml" },
+      });
+    },
+
+    "/api/twilio-stream": (req, server) => {
+      if (server.upgrade(req, { data: { isTwilioStream: true } })) {
+        return undefined;
+      }
+      return new Response("Upgrade failed", { status: 500 });
     },
 
     "/api/realtime": (req, server) => {
@@ -51,8 +73,35 @@ const server = serve({
       session?: GeminiLiveSession;
       isGeminiLive?: boolean;
       realtimeAgent?: WebsocketAgent;
+      isTwilioStream?: boolean;
+      twilioHandler?: TwilioStreamHandler;
     },
     async open(ws) {
+
+      // NEW - Twilio Stream handler
+      if (ws.data.isTwilioStream) {
+        console.log('Initializing Twilio Stream Session...');
+        const twilioHandler = new TwilioStreamHandler(ws);
+        ws.data.twilioHandler = twilioHandler;
+
+        const session = new GeminiLiveSession({
+          onAudio: (chunk) => twilioHandler.sendMedia(chunk),
+          onInputTranscription: (text) => console.log('[Twilio] Input:', text),
+          onOutputTranscription: (text) => console.log('[Twilio] Output:', text),
+          onTurnComplete: () => console.log('[Twilio] Turn complete'),
+          onError: (e) => console.error('[Twilio] Error:', e),
+          onClose: () => {
+            console.log('[Twilio] Session closed');
+            // twilioHandler.close(); // Optional, but usually Twilio closes connection fast
+          },
+          onToolCall: (tool) => console.log('[Twilio] Tool call:', tool),
+          onToolResult: (tool) => console.log('[Twilio] Tool result:', tool),
+        });
+
+        twilioHandler.setSession(session);
+        return;
+      }
+
 
       // NEW - Gemini Live handler
       if (ws.data.isGeminiLive) {
@@ -127,6 +176,14 @@ const server = serve({
       }
     },
     async message(ws, message) {
+      // Twilio handler
+      if (ws.data.isTwilioStream && ws.data.twilioHandler) {
+        if (typeof message === 'string') {
+          await ws.data.twilioHandler.handleMessage(message);
+        }
+        return;
+      }
+
       // NEW - Gemini Live handler
       if (ws.data.isGeminiLive && ws.data.session) {
         if (message instanceof Buffer || message instanceof Uint8Array) {
@@ -164,6 +221,11 @@ const server = serve({
       }
     },
     async close(ws) {
+      if (ws.data.isTwilioStream && ws.data.twilioHandler) {
+        await ws.data.twilioHandler.close();
+        return;
+      }
+
       // NEW - Gemini Live cleanup
       if (ws.data.isGeminiLive && ws.data.session) {
         await ws.data.session.disconnect();
